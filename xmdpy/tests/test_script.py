@@ -10,7 +10,7 @@ END = "\033[0m"  # ANSI escape sequence to reset formatting
 if __name__ == "__main__":
     traj = xr.open_dataset(
         "./trajectories/pbe-d3bj-22e_8750-9750ps_raman.xyz",
-        engine=xmdpy.backend.XYZBackendEntrypoint,
+        engine="xmdpy",  # xmdpy.backend.XYZBackendEntrypoint,
         cell=22.235,
     )
     cell = traj.xmd.cell

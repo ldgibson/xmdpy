@@ -5,9 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import xarray as xr
 
-from .accessor import TrajectoryAccessor
-
-__all__ = ["Cell", "TrajectoryAccessor"]
+__all__ = ["Cell"]
 
 type SingleDType = np.dtype | type | str
 
