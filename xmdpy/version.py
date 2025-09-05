@@ -73,6 +73,6 @@ MINOR = _version_minor
 MICRO = _version_micro
 VERSION = __version__
 PACKAGE_DATA = {"xmdpy": [pjoin("data", "*")]}
-REQUIRES = ["dask", "numpy", "xarray"]
+REQUIRES = ["dask", "numpy", "xarray", "pandas"]
 PYTHON_REQUIRES = ">= 3.11"
-ENTRY_POINTS = {"xarray.backends": ["xmdpy=xmdpy.backend:XYZBackendEntrypoint"]}
+ENTRY_POINTS = {"xarray.backends": ["xmdpy=xmdpy.backend:XMDPYBackendEntrypoint"]}

@@ -3,17 +3,12 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from .core import Cell, NotOrthorhombicError
-
-# type M = int
-# type N = int
-
-# type NDArray_NM = np.ndarray[tuple[int, N, M], np.dtype[np.float64]]
+from xmdpy.core import Cell
 
 
 def wrap(xyz: npt.ArrayLike, cell: Cell) -> npt.NDArray:
     if not cell.is_orthorhombic():
-        raise NotOrthorhombicError(cell)
+        raise NotImplementedError("Cell must be orthorhombic to wrap coordinates.")
     return xyz - cell.lengths * np.round(xyz / cell.lengths)
 
 

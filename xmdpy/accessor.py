@@ -4,9 +4,11 @@ import dask
 import dask.array as da
 import numpy.typing as npt
 import xarray as xr
+from xarray.core.dataarray import DataArray
+from xarray.core.dataset import Dataset
 
-from .analysis import compute_pairwise_distances
-from .core import Cell
+from xmdpy.analysis import compute_pairwise_distances
+from xmdpy.core import Cell
 
 
 class CellNotDefinedError(Exception):
@@ -19,20 +21,34 @@ class CellNotDefinedError(Exception):
         super().__init__(self.message)
 
 
+def _has_trajectory_like_objects(obj: Dataset | DataArray) -> bool:
+    if "xyz" in obj:
+        if obj["xyz"].ndim == 3 and obj["xyz"].shape[-1] == 3:
+            return True
+    return False
+
+
 @xr.register_dataset_accessor("xmd")
 class TrajectoryAccessor:
-    def __init__(self, xarray_obj: xr.Dataset) -> None:
+    # def __new__(cls, obj) -> Self:
+    #     if not _has_trajectory_like_objects(obj):
+    #         raise AttributeError(
+    #             "TrajectoryAccessor only usable for Datasets with trajectory-like variables."
+    #         )
+    #     return super().__new__(cls)
+
+    def __init__(self, xarray_obj: Dataset) -> None:
         self._obj = xarray_obj
 
         if "cell" in self._obj:
             self.cell = Cell(self._obj["cell"])
 
-    def set_cell(self, cell: npt.ArrayLike, n_frames: int | None = None) -> xr.Dataset:
+    def set_cell(self, cell: npt.ArrayLike, n_frames: int | None = None) -> Dataset:
         """Adds or updates the cell variable in the Dataset.
 
-        If the cell is not changing each frame (e.g., in NVT simulations),
-        then it will only have 2 dimensions (`"cell_vector"` and `"xyz_dim"`)
-        and will not include a temporal dimension (i.e., `"frame"`).
+        If the trajectory has constant volume (i.e., only one set of cell
+        vectors), then the cell variable will be broadcasted across all
+        frames in the trajectory.
 
         Args:
             cell (npt.ArrayLike): Cell parameters.
@@ -43,10 +59,9 @@ class TrajectoryAccessor:
         Returns:
             xr.Dataset: New Dataset with the cell variable added.
         """
-        cell = Cell(cell, n_frames=n_frames).to_xarray()
-        return self._obj.assign(dict(cell=cell))
+        return self._obj.assign({"cell": Cell(cell, n_frames=n_frames).to_xarray()})
 
-    def set_time_index(self, time: npt.ArrayLike, indexable: bool = True) -> xr.Dataset:
+    def set_time_index(self, time: npt.ArrayLike, indexable: bool = True) -> Dataset:
         """Adds or updates the time index in the Dataset.
 
         Args:
@@ -65,7 +80,7 @@ class TrajectoryAccessor:
 
         return ds
 
-    def add_group(self, selection, name, indexable=True) -> xr.Dataset:
+    def add_group(self, selection, name, indexable=True) -> Dataset:
         # TODO
         raise NotImplementedError()
 
@@ -75,7 +90,7 @@ class TrajectoryAccessor:
         atoms2: str | int | Sequence[int] | None = None,
         mic: bool = True,
         lazy: bool = True,
-    ) -> xr.DataArray:
+    ) -> DataArray:
         """Compute the pairwise distances between pairs of atoms.
 
         Args:
