@@ -15,10 +15,11 @@ type FloatLike = np.floating | np.integer
 
 type NumFrames = int
 type NumAtoms = int
+type XYZDim = int
 
-TrajNDArray = np.ndarray[tuple[NumFrames, NumAtoms, Literal[3]], np.dtype[FloatLike]]
-AtomsNDArray = np.ndarray[tuple[NumAtoms, Literal[3]], np.dtype[FloatLike]]
-CellNDArray = np.ndarray[tuple[NumFrames, Literal[3], Literal[3]], np.dtype[FloatLike]]
+TrajNDArray = np.ndarray[tuple[NumFrames, NumAtoms, XYZDim], np.dtype[FloatLike]]
+AtomsNDArray = np.ndarray[tuple[NumAtoms, XYZDim], np.dtype[FloatLike]]
+CellNDArray = np.ndarray[tuple[NumFrames, XYZDim, XYZDim], np.dtype[FloatLike]]
 
 
 class ShapeError(Exception):
@@ -49,11 +50,15 @@ def normalize_cell(
     match (cell.ndim, cell.shape):
         # Scalar
         case (0, ()):
-            normalized_cell = np.broadcast_to(np.eye(3) * cell, (n_frames, 3, 3))
+            normalized_cell: CellNDArray = np.broadcast_to(
+                np.eye(3) * cell, (n_frames, 3, 3)
+            )
 
         # Cell lengths
         case (1, (3,)):
-            normalized_cell = np.broadcast_to(np.diag(cell), (n_frames, 3, 3))
+            normalized_cell: CellNDArray = np.broadcast_to(
+                np.diag(cell), (n_frames, 3, 3)
+            )
 
         # Cell lengths per-frame
         case (2, (N, 3)) if N != 3:
@@ -61,15 +66,15 @@ def normalize_cell(
                 raise ValueError(
                     f"Number of frames ({n_frames=}) does not match shape of array ({cell.shape=})"
                 )
-            normalized_cell = np.stack([np.diag(c) for c in cell])
+            normalized_cell: CellNDArray = np.stack([np.diag(c) for c in cell])
 
         # Cell vectors (avoids case with cell lengths given for 3 frames)
         case (2, (3, 3)):
-            normalized_cell = np.broadcast_to(cell, (n_frames, 3, 3))
+            normalized_cell: CellNDArray = np.broadcast_to(cell, (n_frames, 3, 3))
 
         # Cell vectors per-frame
         case (3, (N, 3, 3)):
-            normalized_cell = cell
+            normalized_cell: CellNDArray = cell
 
         # All other shapes are invalid
         case (_, _):
