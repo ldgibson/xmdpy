@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Container
 from dataclasses import dataclass
 from enum import Enum, EnumMeta
 from typing import Any, BinaryIO
@@ -11,6 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
+from xarray.core import indexing
 
 from xmdpy.core import (
     CellNDArray,
@@ -26,11 +27,11 @@ from xmdpy.core import (
 class Trajectory:
     positions: TrajNDArray
     cell: CellNDArray | None = None
-    atoms: np.ndarray[tuple[NumFrames, NumAtoms], np.dtype[str]] | None = None
+    atoms: np.ndarray[tuple[NumFrames, NumAtoms], np.dtype[Any]] | None = None
 
 
 TrajectoryParsingFn = Callable[
-    [BinaryIO, NumAtoms, Iterable[int] | NumFrames | None, SingleDType], Trajectory
+    [BinaryIO, NumAtoms, Container[int] | NumFrames | None, SingleDType], Trajectory
 ]
 
 
@@ -46,7 +47,7 @@ def get_trajectory_parsing_fn(file_format: str) -> TrajectoryParsingFn:
 def parse_xyz_frames(
     file_handle: BinaryIO,
     n_atoms: NumAtoms,
-    frames: Iterable[int] | NumFrames | None = None,
+    frames: Container[int] | int | None = None,
     dtype: SingleDType = np.float64,
 ) -> Trajectory:
     lines_per_frame = n_atoms + 2
@@ -56,12 +57,9 @@ def parse_xyz_frames(
 
     if frames is None:
 
-        class AllFrames:
+        class AllFrames(Container):
             def __contains__(self, x: int) -> bool:
                 return True
-
-            def __len__(self) -> None:
-                return None
 
         frames = AllFrames()
         n_rows = None
@@ -155,10 +153,10 @@ class XYZBackendArray(xr.backends.BackendArray):
         self.frame_size = frame_size
 
     def __getitem__(self, key: tuple):
-        return xr.core.indexing.explicit_indexing_adapter(
+        return indexing.explicit_indexing_adapter(
             key,
             self.shape,
-            xr.core.indexing.IndexingSupport.OUTER,
+            indexing.IndexingSupport.OUTER,
             self._raw_indexing_method,
         )
 
@@ -222,7 +220,7 @@ class XYZBackendEntrypoint(xr.backends.BackendEntrypoint):
             frame_size=frame_size,
         )
 
-        xyz_data = xr.core.indexing.LazilyIndexedArray(backend_array)
+        xyz_data = indexing.LazilyIndexedArray(backend_array)
         xyz_var = xr.Variable(dims=("frame", "atom_id", "xyz_dim"), data=xyz_data)
 
         ds = xr.Dataset(
@@ -284,10 +282,10 @@ class TrajectoryBackendArray(xr.backends.BackendArray):
         self.parsing_fn = parsing_fn
 
     def __getitem__(self, key: tuple):
-        return xr.core.indexing.explicit_indexing_adapter(
+        return indexing.explicit_indexing_adapter(
             key,
             self.shape,
-            xr.core.indexing.IndexingSupport.OUTER,
+            indexing.IndexingSupport.OUTER,
             self._raw_indexing_method,
         )
 
@@ -307,7 +305,7 @@ class TrajectoryBackendArray(xr.backends.BackendArray):
 
         with self.lock, open(self.filename_or_obj, "rb") as f:
             trajectory = self.parsing_fn(
-                file_handle=f,
+                file_handle=f,  # type: ignore
                 n_atoms=self.shape[1],
                 frames=frames,
                 dtype=self.dtype,
@@ -352,7 +350,7 @@ class XMDPYBackendEntrypoint(xr.backends.BackendEntrypoint):
             parsing_fn=traj_parsing_fn,
         )
 
-        xyz_data = xr.core.indexing.LazilyIndexedArray(backend_array)
+        xyz_data = indexing.LazilyIndexedArray(backend_array)
         xyz_var = xr.Variable(dims=("frame", "atom_id", "xyz_dim"), data=xyz_data)
 
         ds = xr.Dataset(
