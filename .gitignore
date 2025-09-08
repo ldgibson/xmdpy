@@ -1,3 +1,5 @@
+src/__pycache__/
+tests/__pycache__/
 *.py[co]
 *~
 *.DS_Store

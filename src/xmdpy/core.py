@@ -11,7 +11,7 @@ __all__ = ["Cell", "normalize_cell"]
 
 # if TYPE_CHECKING:
 type SingleDType = np.dtype | type | str
-type FloatLike = np.floating | np.integer | int | float
+type FloatLike = np.floating | np.integer
 
 type NumFrames = int
 type NumAtoms = int
@@ -81,7 +81,7 @@ def normalize_cell(
 class Cell:
     def __init__(
         self,
-        array: npt.ArrayLike[FloatLike],
+        array: npt.ArrayLike,
         n_frames: int | None = None,
         shape_tol: float = 1e-6,
         dtype: SingleDType = np.float64,
