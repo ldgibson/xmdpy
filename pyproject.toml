@@ -1,4 +1,27 @@
+[project]
+name = "xmdpy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dask>=2025.7.0",
+    "numpy>=2.3.2",
+    "xarray>=2025.9.0",
+]
+
+[project.entry-points."xarray.backends"]
+xmdpy = "xmdpy.backend:XMDPYBackendEntrypoint"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+
 [build-system]
-# Setuptools version should match setup.py; wheel because pip will insert it noisily
-requires = ["setuptools >= 77.0.3", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.8.15,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "scipy>=1.16.1",
+]
