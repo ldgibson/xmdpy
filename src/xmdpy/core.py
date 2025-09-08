@@ -51,7 +51,7 @@ def normalize_cell(
         # Scalar
         case (0, ()):
             normalized_cell: CellNDArray = np.broadcast_to(
-                np.eye(3) * cell, (n_frames, 3, 3)
+                np.eye(3, dtype=dtype) * cell, (n_frames, 3, 3)
             )
 
         # Cell lengths

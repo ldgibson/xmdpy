@@ -1,20 +1,19 @@
-from collections.abc import Sequence
-
+from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
 
-from xmdpy.core import Cell
+from xmdpy.core import Cell, FloatLike, TrajNDArray
 
 
-def wrap(xyz: npt.ArrayLike, cell: Cell) -> npt.NDArray:
+def wrap(xyz: npt.NDArray[FloatLike], cell: Cell) -> npt.NDArray[FloatLike]:
     if not cell.is_orthorhombic():
         raise NotImplementedError("Cell must be orthorhombic to wrap coordinates.")
     return xyz - cell.lengths * np.round(xyz / cell.lengths)
 
 
 def compute_pairwise_distances_in_frame(
-    xyz1: npt.ArrayLike,
-    xyz2: npt.ArrayLike,
+    xyz1: npt.NDArray[FloatLike],
+    xyz2: npt.NDArray[FloatLike],
 ) -> npt.NDArray:
     n_atoms1 = xyz1.shape[0]
     n_atoms2 = xyz2.shape[0]
@@ -28,8 +27,8 @@ def compute_pairwise_distances_in_frame(
 
 
 def compute_pairwise_distance_vectors(
-    xyz1: npt.ArrayLike,
-    xyz2: npt.ArrayLike,
+    xyz1: TrajNDArray,
+    xyz2: TrajNDArray,
     cell: Cell | None = None,
 ) -> npt.NDArray:
     if xyz1.shape[0] != xyz2.shape[0]:
@@ -51,8 +50,8 @@ def compute_pairwise_distance_vectors(
 
 
 def compute_pairwise_distances(
-    xyz1: npt.ArrayLike,
-    xyz2: npt.ArrayLike,
+    xyz1: TrajNDArray,
+    xyz2: TrajNDArray,
     cell: Cell | None = None,
 ) -> npt.NDArray:
     distance_vectors = compute_pairwise_distance_vectors(xyz1, xyz2, cell)
@@ -71,12 +70,13 @@ def is_symmetric(arr, rtol=1e-05, atol=1e-08):
 
 def compute_radial_distribution(
     distances: npt.ArrayLike,
-    volume: float | Sequence[float],
+    volume: float | Iterable[float],
     bins: int = 50,
-    r_range: tuple[int] = (0, 10),
+    r_range: tuple[int, int] = (0, 10),
 ):
     """Compute the radial distribution function for NVT or NPT simulations."""
     distances = np.asarray(distances)
+    volume = np.asarray(volume)
     n_frames = distances.shape[0]
 
     if is_symmetric(distances[0]):
@@ -90,7 +90,7 @@ def compute_radial_distribution(
     r_edges = np.linspace(*r_range, num=bins + 1)
     dr = r_edges[1] - r_edges[0]
 
-    if hasattr(volume, "__len__"):
+    if volume.shape:
         volume = np.reshape(volume, shape=(n_frames, -1))
 
     # Compute weights of each distance

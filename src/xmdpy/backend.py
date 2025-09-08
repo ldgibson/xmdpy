@@ -6,11 +6,13 @@ from dataclasses import dataclass
 from enum import Enum, EnumMeta
 from typing import Any, BinaryIO
 
-import dask
+import dask.utils
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
+import xarray.backends
+import xarray.backends.locks
 from xarray.core import indexing
 
 from xmdpy.core import (
@@ -137,11 +139,11 @@ def get_xyz_metadata(filename: BinaryIO):
     return total_size, frame_size, n_frames, atoms, cell
 
 
-class XYZBackendArray(xr.backends.BackendArray):
+class XYZBackendArray(xarray.backends.BackendArray):
     def __init__(
         self,
         filename_or_obj: Any,
-        shape: tuple,
+        shape: tuple[int, ...],
         dtype,
         lock,
         frame_size: int,
@@ -152,7 +154,7 @@ class XYZBackendArray(xr.backends.BackendArray):
         self.lock = lock
         self.frame_size = frame_size
 
-    def __getitem__(self, key: tuple):
+    def __getitem__(self, key: Any):
         return indexing.explicit_indexing_adapter(
             key,
             self.shape,
@@ -193,7 +195,7 @@ class XYZBackendArray(xr.backends.BackendArray):
         return arr
 
 
-class XYZBackendEntrypoint(xr.backends.BackendEntrypoint):
+class XYZBackendEntrypoint(xarray.backends.BackendEntrypoint):
     def open_dataset(
         self,
         filename_or_obj,
@@ -266,22 +268,27 @@ class TrajectoryFormat(Enum, metaclass=TrajFormatEnumMeta):
         )
 
 
-class TrajectoryBackendArray(xr.backends.BackendArray):
+type OuterIndex = (
+    int | np.integer | slice | np.ndarray[tuple[int], np.dtype[np.integer]]
+)
+
+
+class TrajectoryBackendArray(xarray.backends.BackendArray):
     def __init__(
         self,
         filename_or_obj: Any,
-        shape: tuple,
-        dtype,
-        lock,
+        shape: tuple[int, ...],
+        dtype: SingleDType,
+        lock: xarray.backends.locks.SerializableLock,
         parsing_fn: TrajectoryParsingFn,
-    ):
+    ) -> None:
         self.filename_or_obj = filename_or_obj
         self.shape = shape
         self.dtype = dtype
         self.lock = lock
         self.parsing_fn = parsing_fn
 
-    def __getitem__(self, key: tuple):
+    def __getitem__(self, key: Any):
         return indexing.explicit_indexing_adapter(
             key,
             self.shape,
@@ -289,19 +296,25 @@ class TrajectoryBackendArray(xr.backends.BackendArray):
             self._raw_indexing_method,
         )
 
-    def _raw_indexing_method(self, key: tuple):
+    def _raw_indexing_method(
+        self, key: tuple[OuterIndex, OuterIndex, OuterIndex]
+    ) -> np.ndarray[tuple[int, ...], np.dtype[FloatLike]]:
         frame_id, atom_id, xyz_dim_id = key
 
-        if isinstance(frame_id, slice):
-            start = frame_id.start or 0
-            stop = frame_id.stop or self.shape[0]
-            step = frame_id.step or 1
+        if isinstance(frame_id, np.ndarray):
+            # TODO: add validation
+            frames = frame_id
         else:
-            start = frame_id or 0
-            stop = frame_id + 1
-            step = 1
+            if isinstance(frame_id, slice):
+                start = frame_id.start or 0
+                stop = frame_id.stop or self.shape[0]
+                step = frame_id.step or 1
+            else:
+                start = frame_id or 0
+                stop = frame_id + 1
+                step = 1
 
-        frames = range(start, stop, step)
+            frames = range(start, stop, step)
 
         with self.lock, open(self.filename_or_obj, "rb") as f:
             trajectory = self.parsing_fn(
@@ -320,15 +333,15 @@ class TrajectoryBackendArray(xr.backends.BackendArray):
         return arr
 
 
-class XMDPYBackendEntrypoint(xr.backends.BackendEntrypoint):
+class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
     def open_dataset(
         self,
         filename_or_obj,
         *,
         drop_variables: Any | None = None,
         dtype: SingleDType = np.float64,
-        time: npt.ArrayLike[FloatLike] | None = None,
-        cell: npt.ArrayLike[FloatLike] | None = None,
+        time: npt.NDArray[FloatLike] | None = None,
+        cell: npt.NDArray[FloatLike] | None = None,
         file_format: str = "xyz",
     ) -> xr.Dataset:
         traj_parsing_fn = get_trajectory_parsing_fn(file_format)
@@ -346,7 +359,7 @@ class XMDPYBackendEntrypoint(xr.backends.BackendEntrypoint):
             filename_or_obj=filename_or_obj,
             shape=(n_frames, len(atoms), 3),
             dtype=dtype,
-            lock=dask.utils.SerializableLock(),
+            lock=xarray.backends.locks.SerializableLock(),
             parsing_fn=traj_parsing_fn,
         )
 
