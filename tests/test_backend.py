@@ -10,7 +10,7 @@ def test_XMDPYBackendEntrypoint():
 
     result = xr.load_dataset(
         traj_fname,
-        engine="xmdpy",  # XMDPYBackendEntrypoint,
+        engine="xmdpy",
         cell=cell,
         file_format="xyz",
     )

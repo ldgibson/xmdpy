@@ -7,19 +7,12 @@ import numpy as np
 import numpy.typing as npt
 import xarray as xr
 
+from xmdpy.types import (
+    SingleDType,
+    CellNDArray,
+)
+
 __all__ = ["Cell", "normalize_cell"]
-
-# if TYPE_CHECKING:
-type SingleDType = np.dtype | type | str
-type FloatLike = np.floating | np.integer
-
-type NumFrames = int
-type NumAtoms = int
-type XYZDim = int
-
-TrajNDArray = np.ndarray[tuple[NumFrames, NumAtoms, XYZDim], np.dtype[FloatLike]]
-AtomsNDArray = np.ndarray[tuple[NumAtoms, XYZDim], np.dtype[FloatLike]]
-CellNDArray = np.ndarray[tuple[NumFrames, XYZDim, XYZDim], np.dtype[FloatLike]]
 
 
 class ShapeError(Exception):
@@ -37,7 +30,7 @@ class ShapeError(Exception):
 
 def normalize_cell(
     cell: npt.ArrayLike,
-    n_frames: NumFrames | None = None,
+    n_frames: int | None = None,
     dtype: SingleDType | None = None,
     copy: bool | None = None,
 ) -> CellNDArray:
@@ -50,15 +43,13 @@ def normalize_cell(
     match (cell.ndim, cell.shape):
         # Scalar
         case (0, ()):
-            normalized_cell: CellNDArray = np.broadcast_to(
+            normalized_cell = np.broadcast_to(
                 np.eye(3, dtype=dtype) * cell, (n_frames, 3, 3)
             )
 
         # Cell lengths
         case (1, (3,)):
-            normalized_cell: CellNDArray = np.broadcast_to(
-                np.diag(cell), (n_frames, 3, 3)
-            )
+            normalized_cell = np.broadcast_to(np.diag(cell), (n_frames, 3, 3))
 
         # Cell lengths per-frame
         case (2, (N, 3)) if N != 3:
@@ -66,11 +57,11 @@ def normalize_cell(
                 raise ValueError(
                     f"Number of frames ({n_frames=}) does not match shape of array ({cell.shape=})"
                 )
-            normalized_cell: CellNDArray = np.stack([np.diag(c) for c in cell])
+            normalized_cell = np.stack([np.diag(c) for c in cell])
 
         # Cell vectors (avoids case with cell lengths given for 3 frames)
         case (2, (3, 3)):
-            normalized_cell: CellNDArray = np.broadcast_to(cell, (n_frames, 3, 3))
+            normalized_cell = np.broadcast_to(cell, (n_frames, 3, 3))
 
         # Cell vectors per-frame
         case (3, (N, 3, 3)):
@@ -78,7 +69,7 @@ def normalize_cell(
 
         # All other shapes are invalid
         case (_, _):
-            raise ShapeError(invalid_shape=cell.shape, target_shape=(-1, 3, 3))
+            raise ShapeError(invalid_shape=cell.shape)
 
     return normalized_cell
 
@@ -99,7 +90,7 @@ class Cell:
         array_string = np.array2string(self._array, prefix="Cell(", suffix=")")
         return f"Cell({array_string})"
 
-    def __len__(self) -> NumFrames:
+    def __len__(self) -> int:
         return self._array.shape[0]
 
     def __getitem__(self, key):
@@ -115,11 +106,11 @@ class Cell:
         return self._array
 
     @property
-    def volume(self) -> np.ndarray[tuple[NumFrames,], np.dtype[np.float64]]:
+    def volume(self) -> np.ndarray[tuple[int,], np.dtype[np.float64]]:
         return np.linalg.det(self._array)
 
     @property
-    def lengths(self) -> np.ndarray[tuple[NumFrames, Literal[3]], np.dtype[np.float64]]:
+    def lengths(self) -> np.ndarray[tuple[int, Literal[3]], np.dtype[np.float64]]:
         return np.linalg.norm(self._array, axis=-1)
 
     @property

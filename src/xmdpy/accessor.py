@@ -8,7 +8,7 @@ from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
 
 from xmdpy.analysis import compute_pairwise_distances
-from xmdpy.core import Cell
+from xmdpy.cell import Cell
 
 
 class CellNotDefinedError(Exception):

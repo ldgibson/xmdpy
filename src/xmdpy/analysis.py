@@ -2,7 +2,8 @@ from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
 
-from xmdpy.core import Cell, FloatLike, TrajNDArray
+from xmdpy.cell import Cell
+from xmdpy.types import FloatLike, TrajNDArray
 
 
 def wrap(xyz: npt.NDArray[FloatLike], cell: Cell) -> npt.NDArray[FloatLike]:

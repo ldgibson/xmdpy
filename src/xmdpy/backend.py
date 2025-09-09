@@ -1,95 +1,23 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Container
-from dataclasses import dataclass
-from enum import Enum, EnumMeta
 from typing import Any, BinaryIO
 
 import dask.utils
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 import xarray as xr
 import xarray.backends
 import xarray.backends.locks
 from xarray.core import indexing
 
-from xmdpy.core import (
-    CellNDArray,
-    FloatLike,
-    NumAtoms,
-    NumFrames,
-    SingleDType,
-    TrajNDArray,
+from xmdpy.parsers import (
+    get_trajectory_parsing_fn,
+    TrajectoryParsingFn,
 )
+from xmdpy.trajectory import Trajectory
 
-
-@dataclass
-class Trajectory:
-    positions: TrajNDArray
-    cell: CellNDArray | None = None
-    atoms: np.ndarray[tuple[NumFrames, NumAtoms], np.dtype[Any]] | None = None
-
-
-TrajectoryParsingFn = Callable[
-    [BinaryIO, NumAtoms, Container[int] | NumFrames | None, SingleDType], Trajectory
-]
-
-
-def get_trajectory_parsing_fn(file_format: str) -> TrajectoryParsingFn:
-    if file_format not in TrajectoryFormat:
-        raise AttributeError(
-            f"Invalid file format: {file_format}. "
-            f"Available formats: {TrajectoryFormat.available_formats}"
-        )
-    return TrajectoryFormat[file_format.upper()].parsing_fn
-
-
-def parse_xyz_frames(
-    file_handle: BinaryIO,
-    n_atoms: NumAtoms,
-    frames: Container[int] | int | None = None,
-    dtype: SingleDType = np.float64,
-) -> Trajectory:
-    lines_per_frame = n_atoms + 2
-
-    if isinstance(frames, int):
-        frames = range(frames)
-
-    if frames is None:
-
-        class AllFrames(Container):
-            def __contains__(self, x: int) -> bool:
-                return True
-
-        frames = AllFrames()
-        n_rows = None
-    else:
-        n_rows = len(frames) * n_atoms
-
-    def skiprow(row_id: int) -> bool:
-        if int(row_id / lines_per_frame) not in frames:
-            return True
-
-        if row_id % lines_per_frame == 0 or (row_id - 1) % lines_per_frame == 0:
-            return True
-
-        return False
-
-    df = pd.read_csv(
-        file_handle,
-        sep=r"\s+",
-        usecols=[0, 1, 2, 3],
-        nrows=n_rows,
-        names=["symbol", "x", "y", "z"],
-        dtype={"symbol": str, "x": dtype, "y": dtype, "z": dtype},
-        skiprows=skiprow,
-    )
-    return Trajectory(
-        atoms=df["symbol"].values.reshape(-1, n_atoms),
-        positions=df[list("xyz")].values.reshape(-1, n_atoms, 3),
-    )
+from xmdpy.types import FloatLike, SingleDType, TrajNDArray
 
 
 def read_and_parse_xyz_frame_bytes(
@@ -112,7 +40,7 @@ def read_and_parse_xyz_frame_bytes(
     return positions
 
 
-def get_xyz_metadata(filename: BinaryIO):
+def get_xyz_metadata(filename: os.PathLike):
     total_size = os.path.getsize(filename)
     atoms = []
     cell = None
@@ -198,7 +126,7 @@ class XYZBackendArray(xarray.backends.BackendArray):
 class XYZBackendEntrypoint(xarray.backends.BackendEntrypoint):
     def open_dataset(
         self,
-        filename_or_obj,
+        filename_or_obj: os.PathLike,
         *,
         drop_variables: Any | None = None,
         dtype: SingleDType = np.float64,
@@ -243,31 +171,6 @@ class XYZBackendEntrypoint(xarray.backends.BackendEntrypoint):
         return ds
 
 
-class TrajFormatEnumMeta(EnumMeta):
-    def __contains__(cls, value: str) -> bool:
-        return value.upper() in cls.__members__.keys()
-
-    @property
-    def available_formats(cls) -> tuple[str, ...]:
-        return tuple(cls.__members__.keys())
-
-
-class TrajectoryFormat(Enum, metaclass=TrajFormatEnumMeta):
-    XYZ = ("xyz", parse_xyz_frames)
-
-    def __new__(cls, base_file_type: str, parsing_fn: TrajectoryParsingFn):
-        obj = object.__new__(cls)
-        obj._value_ = base_file_type
-        obj.parsing_fn = parsing_fn
-        return obj
-
-    def __repr__(self):
-        return (
-            f"<TrajectoryFormat.{self.name}: {self.value}>"
-            f".parsing_fn={self.parsing_fn.__name__}"
-        )
-
-
 type OuterIndex = (
     int | np.integer | slice | np.ndarray[tuple[int], np.dtype[np.integer]]
 )
@@ -276,7 +179,7 @@ type OuterIndex = (
 class TrajectoryBackendArray(xarray.backends.BackendArray):
     def __init__(
         self,
-        filename_or_obj: Any,
+        filename_or_obj: os.PathLike,
         shape: tuple[int, ...],
         dtype: SingleDType,
         lock: xarray.backends.locks.SerializableLock,
@@ -317,7 +220,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
             frames = range(start, stop, step)
 
         with self.lock, open(self.filename_or_obj, "rb") as f:
-            trajectory = self.parsing_fn(
+            trajectory: Trajectory = self.parsing_fn(
                 file_handle=f,  # type: ignore
                 n_atoms=self.shape[1],
                 frames=frames,
@@ -327,7 +230,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
         # Get slices along other axes
         arr = trajectory.positions[:, atom_id, xyz_dim_id]
 
-        if any([isinstance(dim, int) for dim in key]):
+        if any(isinstance(dim, int) for dim in key):
             arr = arr.squeeze()
 
         return arr
