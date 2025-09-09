@@ -1,7 +1,7 @@
 [project]
 name = "xmdpy"
 version = "0.1.0"
-description = "Add your description here"
+description = "xmdpy: an Xarray interface for molecular dynamics trajectories"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

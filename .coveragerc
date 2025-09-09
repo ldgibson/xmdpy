@@ -1,7 +1,0 @@
-[run]
-branch = True
-source = xmdpy/*
-include = xmdpy/*
-omit = */setup.py
-[report]
-include = xmdpy/*
