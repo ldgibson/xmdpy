@@ -59,6 +59,7 @@ def parse_xyz_frames(
     frames: SizedContainer[int] | int | None = None,
     dtype: SingleDType = np.float64,
 ) -> Trajectory:
+    # TODO: allow skipping of initialy frames; identify first frame in index if not 0
     lines_per_frame = n_atoms + 2
 
     if isinstance(frames, int):
