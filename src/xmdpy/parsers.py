@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Container, Sized
+from collections.abc import Callable, Container, Sequence
 from enum import StrEnum
 from functools import partial
-from typing import BinaryIO, Protocol
+from typing import BinaryIO
 
 import numpy as np
 import pandas as pd
@@ -16,14 +16,8 @@ class TrajectoryFormat(StrEnum):
     XYZ = "xyz"
 
 
-class SizedContainer[T](Sized, Container[T], Protocol):
-    def __contains__(self, key: object, /) -> bool: ...
-
-    def __len__(self) -> int: ...
-
-
 TrajectoryParsingFn = Callable[
-    [BinaryIO, int, SizedContainer[int] | int | None, SingleDType], Trajectory
+    [BinaryIO, int, Sequence[int] | int | None, SingleDType], Trajectory
 ]
 
 
@@ -56,10 +50,9 @@ def skip_row(row_id: int, lines_per_frame: int, keep_frames: Container[int]) -> 
 def parse_xyz_frames(
     file_handle: BinaryIO,
     n_atoms: int,
-    frames: SizedContainer[int] | int | None = None,
+    frames: Sequence[int] | int | None = None,
     dtype: SingleDType = np.float64,
 ) -> Trajectory:
-    # TODO: allow skipping of initialy frames; identify first frame in index if not 0
     lines_per_frame = n_atoms + 2
 
     if isinstance(frames, int):
@@ -67,17 +60,20 @@ def parse_xyz_frames(
 
     if frames is None:
 
-        class AllFrames(SizedContainer):
+        class ContainsAllFrames(list):
             def __contains__(self, x: int) -> bool:
-                return isinstance(x, int)
+                return True
 
-            def __len__(self) -> int:
+            def __getitem__(self, index: int) -> int:
                 return 0
 
-        frames = AllFrames()
+        frames = ContainsAllFrames()
         n_rows = None
     else:
         n_rows = len(frames) * n_atoms
+
+    # if the first frame is 0, then do not provide any header size
+    header_lines = frames[0] * lines_per_frame or None
 
     skip_row_fn: Callable[[int], bool] = partial(
         skip_row, lines_per_frame=lines_per_frame, keep_frames=frames
@@ -87,6 +83,7 @@ def parse_xyz_frames(
         file_handle,
         sep=r"\s+",
         usecols=[0, 1, 2, 3],
+        header=header_lines,
         nrows=n_rows,
         names=["symbol", "x", "y", "z"],
         dtype={"symbol": np.str_, "x": dtype, "y": dtype, "z": dtype},
