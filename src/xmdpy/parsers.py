@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Container, Sequence
 from enum import StrEnum
 from functools import partial
@@ -98,3 +99,30 @@ def parse_xyz_frames(
 TRAJECTORY_PARSING_FNS: dict[TrajectoryFormat, TrajectoryParsingFn] = {
     TrajectoryFormat.XYZ: parse_xyz_frames,
 }
+
+
+def get_xyz_dimensions(filename: os.PathLike) -> tuple[list[int], list[str]]:
+    total_size = os.path.getsize(filename)
+    atoms = []
+    frame_size = 0
+
+    with open(filename, "rb") as f:
+        line = f.readline()
+        frame_size += len(line)
+        n_atoms = int(line.strip())
+
+        line = f.readline()
+        frame_size += len(line)
+
+        for _ in range(n_atoms):
+            line = f.readline()
+            frame_size += len(line)
+            fields = line.split()
+            atoms.append(fields[0].decode())
+
+    if total_size % frame_size == 0:
+        n_frames = int(total_size / frame_size)
+    else:
+        n_frames = int((total_size + 1) / frame_size)
+
+    return list(range(n_frames)), atoms
