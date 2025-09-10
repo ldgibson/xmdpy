@@ -15,7 +15,6 @@ from xmdpy.parsers import (
     get_xyz_dimensions,
     TrajectoryParsingFn,
 )
-from xmdpy.trajectory import Trajectory
 
 from xmdpy.types import FloatLike, SingleDType
 
@@ -54,22 +53,28 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
         frame_id, atom_id, xyz_dim_id = key
 
         if isinstance(frame_id, np.ndarray):
-            # TODO: add validation
             frames = frame_id
+
         else:
             if isinstance(frame_id, slice):
                 start = frame_id.start or 0
                 stop = frame_id.stop or self.shape[0]
                 step = frame_id.step or 1
-            else:
+
+            elif isinstance(frame_id, int):
                 start = frame_id or 0
                 stop = frame_id + 1
                 step = 1
+            else:
+                start, stop, step = 0, self.shape[0], 1
 
             frames = range(start, stop, step)
 
+        if np.max(frames) >= self.shape[0]:
+            raise IndexError("frame index out of range")
+
         with self.lock, open(self.filename_or_obj, "rb") as f:
-            trajectory: Trajectory = self.parsing_fn(
+            positions = self.parsing_fn(
                 file_handle=f,  # type: ignore
                 n_atoms=self.shape[1],
                 frames=frames,
@@ -77,7 +82,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
             )
 
         # Get slices along other axes
-        arr = trajectory.positions[:, atom_id, xyz_dim_id]
+        arr = positions[:, atom_id, xyz_dim_id]
 
         if any(isinstance(dim, int) for dim in key):
             arr = arr.squeeze()

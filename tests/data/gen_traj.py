@@ -23,17 +23,21 @@ def write_xyz(filename: str, atoms: list[str], positions: npt.ArrayLike) -> None
 
 
 def main() -> None:
+    n_atoms = 300
+    n_frames = 100000
+
     atoms = [
         "Li",
-    ] * 100 + [
+    ] * (n_atoms // 2) + [
         "Cl",
-    ] * 100
+    ] * (n_atoms // 2)
+
     n_atoms = len(atoms)
     cell_length = 20.123
-    n_frames = 1000
+
     positions = np.random.random((n_frames, n_atoms, 3)) * cell_length
 
-    write_xyz("./test_traj.xyz", atoms, positions)
+    write_xyz("./tests/data/test_traj_100ps.xyz", atoms, positions)
 
 
 if __name__ == "__main__":

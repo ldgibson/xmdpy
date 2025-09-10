@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Container, Sequence
+from collections.abc import Callable, Iterable, Container, Sequence
 from enum import StrEnum
-from functools import partial
 from typing import BinaryIO
 
 import numpy as np
 import pandas as pd
 
-from xmdpy.trajectory import Trajectory
-from xmdpy.types import SingleDType
+from xmdpy.types import SingleDType, TrajNDArray
 
 
 class TrajectoryFormat(StrEnum):
     XYZ = "xyz"
 
 
+Array1D_uint64 = np.ndarray[tuple[int], np.dtype[np.uint64]]
+
 TrajectoryParsingFn = Callable[
-    [BinaryIO, int, Sequence[int] | int | None, SingleDType], Trajectory
+    [BinaryIO, int, Sequence[int], SingleDType],
+    TrajNDArray,
 ]
 
 
@@ -28,76 +29,113 @@ def get_trajectory_parsing_fn(file_format: str) -> TrajectoryParsingFn:
     return TRAJECTORY_PARSING_FNS[TrajectoryFormat(file_format)]
 
 
-def skip_row(row_id: int, lines_per_frame: int, keep_frames: Container[int]) -> bool:
-    """Determines if current row should be skipped.
+def skip_lines(
+    frames: Sequence[int],
+    lines_per_frame: int,
+    lines_of_each_frame: Sequence[int],
+    offset: int,
+) -> list[int]:
+    # ! This does not account for any frames skipped in the bounds
+    return np.concatenate(
+        [
+            np.arange(offset),
+            np.ravel(
+                np.asarray(lines_of_each_frame)[None, :]
+                + np.asarray(frames)[:, None] * lines_per_frame
+            ),
+        ]
+    ).tolist()
 
-    Args:
-        row_id (int): Raw row number in file.
-        lines_per_frame (int): The constant number of lines comprising a single frame.
-        keep_frames (Container[int]): Frames that the reader should not skip.
 
-    Returns:
-        bool: Skip frame if True
-    """
-    if int(row_id / lines_per_frame) not in keep_frames:
+def skip_row(
+    row_id: int,
+    frames: Container[int],
+    lines_per_frame: int,
+    lines_of_each_frame: Iterable[int],
+    offset: int = 0,
+) -> bool:
+    if row_id < offset:
         return True
 
-    if row_id % lines_per_frame == 0 or (row_id - 1) % lines_per_frame == 0:
-        return True
-
+    if int(row_id / lines_per_frame) in frames:
+        return (row_id % lines_per_frame == 0) or ((row_id - 1) % lines_per_frame == 0)
     return False
 
 
 def parse_xyz_frames(
     file_handle: BinaryIO,
     n_atoms: int,
-    frames: Sequence[int] | int | None = None,
+    frames: Sequence[int],
     dtype: SingleDType = np.float64,
-) -> Trajectory:
+) -> TrajNDArray:
     lines_per_frame = n_atoms + 2
-
-    if isinstance(frames, int):
-        frames = range(frames)
-
-    if frames is None:
-
-        class ContainsAllFrames(list):
-            def __contains__(self, x: int) -> bool:
-                return True
-
-            def __getitem__(self, index: int) -> int:
-                return 0
-
-        frames = ContainsAllFrames()
-        n_rows = None
-    else:
-        n_rows = len(frames) * n_atoms
-
-    # if the first frame is 0, then do not provide any header size
-    header_lines = frames[0] * lines_per_frame or None
-
-    skip_row_fn: Callable[[int], bool] = partial(
-        skip_row, lines_per_frame=lines_per_frame, keep_frames=frames
+    offset = frames[0] * lines_per_frame
+    n_rows = len(frames) * n_atoms  # only count rows with XYZ information
+    lines_to_skip = skip_lines(
+        frames,
+        lines_per_frame,
+        lines_of_each_frame=[0, 1],  # skip first two lines of each XYZ frame
+        offset=offset,
     )
 
     df = pd.read_csv(
         file_handle,
         sep=r"\s+",
-        usecols=[0, 1, 2, 3],
-        header=header_lines,
+        usecols=[1, 2, 3],
         nrows=n_rows,
-        names=["symbol", "x", "y", "z"],
-        dtype={"symbol": np.str_, "x": dtype, "y": dtype, "z": dtype},
-        skiprows=skip_row_fn,
+        names=["x", "y", "z"],
+        dtype={"x": dtype, "y": dtype, "z": dtype},
+        skiprows=lines_to_skip,
+        engine="c",
     )
-    return Trajectory(
-        symbols=df["symbol"].values.reshape(-1, n_atoms),  # type: ignore
-        positions=df[list("xyz")].values.reshape(-1, n_atoms, 3),
-    )
+    return df.to_numpy().reshape(-1, n_atoms, 3)
+
+
+def read_xyz_frames(
+    file_handle: BinaryIO,
+    n_atoms: int,
+    frames: Sequence[int],
+    dtype: SingleDType = np.float64,
+) -> TrajNDArray:
+    lines_per_frame = n_atoms + 2
+
+    if frames[0] > 0:
+        for _ in range(frames[0] * lines_per_frame):
+            _ = file_handle.readline()
+
+    frames_bounded = range(frames[0], frames[-1] + 1)
+    skip_frames = set(frames_bounded).difference(set(frames))
+
+    positions = np.zeros((len(frames), n_atoms, 3), dtype=dtype)
+
+    i = 0
+    for frame in frames_bounded:
+        if frame in skip_frames:
+            continue
+        positions[i] = _read_xyz_frame(file_handle, n_atoms)
+        i += 1
+
+    return positions
+
+
+def _read_xyz_frame(
+    file_handle: BinaryIO,
+    n_atoms: int,
+) -> list[list[str]]:
+    buffer = []
+
+    _ = file_handle.readline()
+    _ = file_handle.readline()
+
+    for _ in range(n_atoms):
+        buffer.append(file_handle.readline().split()[1:4])
+
+    return buffer
 
 
 TRAJECTORY_PARSING_FNS: dict[TrajectoryFormat, TrajectoryParsingFn] = {
-    TrajectoryFormat.XYZ: parse_xyz_frames,
+    # TrajectoryFormat.XYZ: parse_xyz_frames,
+    TrajectoryFormat.XYZ: read_xyz_frames,
 }
 
 

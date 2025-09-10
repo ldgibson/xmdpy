@@ -1,5 +1,4 @@
-src/__pycache__/
-tests/__pycache__/
+__pycache__/
 *.py[co]
 *~
 *.DS_Store
@@ -7,3 +6,4 @@ tests/__pycache__/
 _build/
 auto_examples/
 gen_api/
+tests/data/test_traj_*
