@@ -111,6 +111,7 @@ def read_xyz_frames(
     i = 0
     for frame in all_bounded_frames:
         if frame in skip_frames:
+            [file_handle.readline() for _ in range(lines_per_frame)]
             continue
         positions[i] = _read_xyz_frame(file_handle, n_atoms)
         i += 1

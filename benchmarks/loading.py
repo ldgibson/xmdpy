@@ -1,7 +1,7 @@
 # import xmdpy
 import time
 
-# import ase.io
+import ase.io
 from MDAnalysis.coordinates.XYZ import XYZReader
 import numpy as np
 import xarray as xr
@@ -28,14 +28,14 @@ def time_load_xarray(filename, cell=None, index=slice(None)):
             cell=cell,
             file_format="xyz",
         )
-        .isel(frame=index)
+        .isel(time=index)
         .compute()
     )
     end = time.time()
     return end - start
 
 
-def time_load_ase(filename):
+def time_load_ase(filename, index=None):
     start = time.time()
     ase.io.read(filename, format="xyz", index=":")
     end = time.time()
@@ -50,21 +50,12 @@ def time_load_mdanalysis(filename, index=slice(None)):
 
 
 def main() -> None:
-    filename = "./tests/data/test_traj.xyz"
+    filename = "./tests/data/test_traj_100ps.xyz"
     cell = np.diag([20.123, 20.123, 20.123])
-
-    N = 1
-    index = slice(None, 100)
-    traj = xr.open_dataset(
-        filename,
-        engine="xmdpy",
-        dt=0.5,
-        cell=cell,
-        file_format="xyz",
-    )
-    print(traj.isel(time=index).compute())
-    # index = [998, 999, 998]
-    # print(time_load_xarray(filename, index=slice(10, None, 2)))
+    index = slice(0, None, 5)
+    N = 3
+    print_run_times(time_load_xarray, filename, index=index, n_iter=N)
+    # print_run_times(time_load_ase, filename, n_iter=N)
     # load_mdanalysis(filename)
 
 
