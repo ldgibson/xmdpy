@@ -54,14 +54,18 @@ def main() -> None:
     cell = np.diag([20.123, 20.123, 20.123])
 
     N = 1
-    # index = slice(None, 1005, 1)
-    index = [998, 999, 998]
+    index = slice(None, 100)
+    traj = xr.open_dataset(
+        filename,
+        engine="xmdpy",
+        dt=0.5,
+        cell=cell,
+        file_format="xyz",
+    )
+    print(traj.isel(time=index).compute())
+    # index = [998, 999, 998]
     # print(time_load_xarray(filename, index=slice(10, None, 2)))
     # load_mdanalysis(filename)
-
-    print_run_times(time_load_xarray, filename, index, N)
-    # print_run_times(time_load_ase, filename, N)
-    # print_run_times(time_load_mdanalysis, filename, index, N)
 
 
 if __name__ == "__main__":

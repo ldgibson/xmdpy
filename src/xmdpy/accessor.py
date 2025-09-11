@@ -43,7 +43,7 @@ class TrajectoryAccessor:
         if "cell" in self._obj:
             self.cell = Cell(self._obj["cell"])
 
-    def set_cell(self, cell: npt.ArrayLike, n_frames: int | None = None) -> Dataset:
+    def set_cell(self, cell: npt.ArrayLike) -> Dataset:
         """Adds or updates the cell variable in the Dataset.
 
         If the trajectory has constant volume (i.e., only one set of cell
@@ -59,7 +59,9 @@ class TrajectoryAccessor:
         Returns:
             xr.Dataset: New Dataset with the cell variable added.
         """
-        return self._obj.assign({"cell": Cell(cell, n_frames=n_frames).to_xarray()})
+        return self._obj.assign(
+            {"cell": Cell(cell).to_xarray(time_index=self._obj.time)}
+        )
 
     def set_time_index(self, time: npt.ArrayLike, indexable: bool = True) -> Dataset:
         """Adds or updates the time index in the Dataset.

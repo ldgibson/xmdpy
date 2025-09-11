@@ -8,11 +8,11 @@ import numpy.typing as npt
 import xarray as xr
 import xarray.backends
 import xarray.backends.locks
-from xarray.core import indexing
+import xarray.core.indexing
 
 from xmdpy.parsers import (
     get_trajectory_parsing_fn,
-    get_xyz_dimensions,
+    get_num_frames_and_atoms,
     TrajectoryParsingFn,
 )
 
@@ -40,10 +40,10 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
         self.parsing_fn = parsing_fn
 
     def __getitem__(self, key: Any):
-        return indexing.explicit_indexing_adapter(
+        return xarray.core.indexing.explicit_indexing_adapter(
             key,
             self.shape,
-            indexing.IndexingSupport.OUTER,
+            xarray.core.indexing.IndexingSupport.OUTER,
             self._raw_indexing_method,
         )
 
@@ -71,7 +71,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
             frames = range(start, stop, step)
 
         if np.max(frames) >= self.shape[0]:
-            raise IndexError("frame index out of range")
+            raise IndexError("time index out of range")
 
         with self.lock, open(self.filename_or_obj, "rb") as f:
             positions = self.parsing_fn(
@@ -97,45 +97,42 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
         *,
         drop_variables: Any | None = None,
         dtype: SingleDType = np.float64,
-        time: npt.NDArray[FloatLike] | None = None,
+        dt: int | float = 1,
         cell: npt.NDArray[FloatLike] | None = None,
         file_format: str = "xyz",
     ) -> xr.Dataset:
         traj_parsing_fn = get_trajectory_parsing_fn(file_format)
 
         dtype = np.dtype(dtype)
-        frames, atoms = get_xyz_dimensions(filename_or_obj)
+        n_frames, atoms = get_num_frames_and_atoms(filename_or_obj)
 
-        frame_var = xr.Variable(dims=("frame",), data=frames)
-        atoms_var = xr.Variable(dims=("atom_id",), data=atoms)
-        atom_id_var = xr.Variable(
-            dims=("atom_id",), data=np.arange(len(atoms), dtype=int)
+        time_var = xr.Variable(
+            dims=("time",), data=np.arange(0, n_frames * dt, dt, dtype=type(dt))
         )
+        atoms_var = xr.Variable(dims=("atom_id",), data=atoms)
+        atom_id_var = xr.Variable(dims=("atom_id",), data=range(len(atoms)))
 
         backend_array = TrajectoryBackendArray(
             filename_or_obj=filename_or_obj,
-            shape=(len(frames), len(atoms), 3),
+            shape=(n_frames, len(atoms), 3),
             dtype=dtype,
             lock=xarray.backends.locks.SerializableLock(),
             parsing_fn=traj_parsing_fn,
         )
 
-        xyz_data = indexing.LazilyIndexedArray(backend_array)
-        xyz_var = xr.Variable(dims=("frame", "atom_id", "xyz_dim"), data=xyz_data)
+        xyz_data = xarray.core.indexing.LazilyIndexedArray(backend_array)
+        xyz_var = xr.Variable(dims=("time", "atom_id", "xyz_dim"), data=xyz_data)
 
         ds = xr.Dataset(
             data_vars={"xyz": xyz_var},
             coords={
-                "frame": frame_var,
+                "time": time_var,
                 "atom_id": atom_id_var,
                 "atoms": atoms_var,
             },
         ).set_xindex("atoms")
 
-        if time is not None:
-            ds = ds.xmd.set_time_index(time)
-
         if cell is not None:
-            ds = ds.xmd.set_cell(cell, n_frames=len(frames))
+            ds = ds.xmd.set_cell(cell)
 
         return ds

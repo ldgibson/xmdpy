@@ -103,13 +103,13 @@ def read_xyz_frames(
         for _ in range(frames[0] * lines_per_frame):
             _ = file_handle.readline()
 
-    frames_bounded = range(frames[0], frames[-1] + 1)
-    skip_frames = set(frames_bounded).difference(set(frames))
+    all_bounded_frames = range(frames[0], frames[-1] + 1)
+    skip_frames = set(all_bounded_frames).difference(set(frames))
 
     positions = np.zeros((len(frames), n_atoms, 3), dtype=dtype)
 
     i = 0
-    for frame in frames_bounded:
+    for frame in all_bounded_frames:
         if frame in skip_frames:
             continue
         positions[i] = _read_xyz_frame(file_handle, n_atoms)
@@ -134,12 +134,11 @@ def _read_xyz_frame(
 
 
 TRAJECTORY_PARSING_FNS: dict[TrajectoryFormat, TrajectoryParsingFn] = {
-    # TrajectoryFormat.XYZ: parse_xyz_frames,
     TrajectoryFormat.XYZ: read_xyz_frames,
 }
 
 
-def get_xyz_dimensions(filename: os.PathLike) -> tuple[list[int], list[str]]:
+def get_num_frames_and_atoms(filename: os.PathLike) -> tuple[int, list[str]]:
     total_size = os.path.getsize(filename)
     atoms = []
     frame_size = 0
@@ -163,4 +162,4 @@ def get_xyz_dimensions(filename: os.PathLike) -> tuple[list[int], list[str]]:
     else:
         n_frames = int((total_size + 1) / frame_size)
 
-    return list(range(n_frames)), atoms
+    return n_frames, atoms

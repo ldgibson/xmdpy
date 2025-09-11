@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
@@ -133,38 +133,43 @@ class Cell:
             return True
         return np.allclose(self._array[0][np.newaxis, :, :], self._array)
 
-    def to_xarray(self, frame_index: Iterable[int] | int | None = None) -> xr.DataArray:
-        """Exports instance to a `xarray.DataArray` with optional `frame_index`.
+    def to_xarray(self, time_index: Sequence[int] | int | None = None) -> xr.DataArray:
+        """Exports instance to a `xarray.DataArray` with optional `time_index`.
 
         Dimensions in DataArray will be `"cell_vector"` and `"xyz_dim"` by
-        default. If a `frame_index` is supplied, and/or the length of the
+        default. If a `time_index` is supplied, and/or the length of the
         `Cell` is greater than one, then a `"frame"` dimension will also be
         included.
 
         Args:
-            frame_index (Iterable[int] | int | None, optional): If specified,
-            `frame_index` is used as index for `frame` dimension of resulting
+            time_index (Sequence[int] | int | None, optional): If specified,
+            `time_index` is used as index for `frame` dimension of resulting
             DataArray. Otherwise, the index will try to be inferred from the
             length of the `Cell` instance. If the length is greater than 1,
-            then `frame_index` will be set to `range(length)`. If the length
+            then `time_index` will be set to `range(length)`. If the length
             is equal to 1, then no `frame` dimension is added to the DataArray.
             Defaults to None.
 
         Returns:
             xr.DataArray: DataArray with labeled coordinates and dimensions.
         """
-        if frame_index is None:
-            frame_index = range(self.__len__())
+        if time_index is None:
+            time_index = range(len(self))
 
-        elif isinstance(frame_index, int):
-            frame_index = [frame_index]
+        elif isinstance(time_index, int):
+            time_index = range(time_index)
+
+        if len(time_index) > len(self):
+            cell_arr = np.broadcast_to(self._array, (len(time_index), 3, 3))
+        else:
+            cell_arr = self._array
 
         return xr.DataArray(
             name="cell",
-            data=self._array,
-            dims=["frame", "cell_vector", "xyz_dim"],
+            data=cell_arr,
+            dims=["time", "cell_vector", "xyz_dim"],
             coords={
-                "frame": frame_index,
+                "time": time_index,
                 "cell_vector": list("ABC"),
                 "xyz_dim": list("xyz"),
             },
