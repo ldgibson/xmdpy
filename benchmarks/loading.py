@@ -1,26 +1,38 @@
 # import xmdpy
 import time
 
-import ase.io
+# import ase.io
 from MDAnalysis.coordinates.XYZ import XYZReader
 import numpy as np
 import xarray as xr
 
 
-def print_run_times(load_fn, filename, index=slice(None), n_iter=1):
+def print_run_times(load_fn, filename, index=slice(None), n_iter=1, **kwargs):
     times = []
 
     for _ in range(n_iter):
-        t = load_fn(filename, index=index)
+        t, out = time_fn(load_fn, filename, index=index, **kwargs)
         times.append(t)
+        output_size = len(out)
+
+    if len(times) > 1:
+        run_time = f"{np.mean(times):.3f} +/ {np.std(times):.3f}"
+    else:
+        run_time = f"{times[0]:.3f}"
 
     print(
-        f" {load_fn.__name__} : {np.mean(times):.3f} +/ {np.std(times):.3f} seconds over {n_iter} iterations"
+        f" {load_fn.__name__} : {run_time} seconds over {n_iter} iterations for trajectory with {output_size} frames"
     )
 
 
-def time_load_xarray(filename, cell=None, index=slice(None)):
+def time_fn(fn, *args, **kwargs):
     start = time.time()
+    output = fn(*args, **kwargs)
+    end = time.time()
+    return (end - start, output)
+
+
+def load_xarray(filename, cell=None, index=slice(None)):
     ds = (
         xr.open_dataset(
             filename,
@@ -29,32 +41,26 @@ def time_load_xarray(filename, cell=None, index=slice(None)):
             file_format="xyz",
         )
         .isel(time=index)
-        .compute()
+        .xyz.compute()
     )
-    end = time.time()
-    return end - start
+    return ds
 
 
 def time_load_ase(filename, index=None):
-    start = time.time()
-    ase.io.read(filename, format="xyz", index=":")
-    end = time.time()
-    return end - start
+    return ase.io.read(filename, format="xyz", index=":")
 
 
 def time_load_mdanalysis(filename, index=slice(None)):
-    start = time.time()
-    [frame.positions for frame in XYZReader(filename).__getitem__(index)]
-    end = time.time()
-    return end - start
+    return [frame.positions for frame in XYZReader(filename).__getitem__(index)]
 
 
 def main() -> None:
-    filename = "./tests/data/test_traj_100ps.xyz"
+    filename = "./tests/data/test_traj.xyz"
     cell = np.diag([20.123, 20.123, 20.123])
-    index = slice(0, None, 5)
-    N = 3
-    print_run_times(time_load_xarray, filename, index=index, n_iter=N)
+    index = slice(None, None)
+    N = 1
+
+    print_run_times(load_xarray, filename, cell=cell, index=index, n_iter=N)
     # print_run_times(time_load_ase, filename, n_iter=N)
     # load_mdanalysis(filename)
 

@@ -39,7 +39,9 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "ase>=3.26.0",
+    "jupyterlab>=4.4.7",
     "mdanalysis>=2.9.0",
     "pytest>=8.4.2",
+    "scalene>=1.5.54",
     "scipy>=1.16.1",
 ]

@@ -1,7 +1,7 @@
 from typing import Sequence
 
 import dask
-import dask.array as da
+from dask.array import map_blocks as da_map_blocks
 import numpy.typing as npt
 import xarray as xr
 from xarray.core.dataarray import DataArray
@@ -62,25 +62,6 @@ class TrajectoryAccessor:
         return self._obj.assign(
             {"cell": Cell(cell).to_xarray(time_index=self._obj.time)}
         )
-
-    def set_time_index(self, time: npt.ArrayLike, indexable: bool = True) -> Dataset:
-        """Adds or updates the time index in the Dataset.
-
-        Args:
-            time (npt.ArrayLike): Values of the time index
-            indexable (bool, optional): Allows the new coordinate to be
-            indexable. Defaults to True.
-
-        Returns:
-            xr.Dataset: New Dataset with the time index added.
-        """
-        time_var = xr.Variable(dims=("frame",), data=time)
-        ds = self._obj.assign_coords(dict(time=time_var))
-
-        if indexable:
-            ds = ds.set_xindex("time")
-
-        return ds
 
     def add_group(self, selection, name, indexable=True) -> Dataset:
         # TODO
@@ -143,7 +124,7 @@ class TrajectoryAccessor:
                 chunks = (frame_chunks, (len(sel1.atoms),), (len(sel2.atoms),))
             else:
                 chunks = "auto"
-            distances = da.map_blocks(
+            distances = da_map_blocks(
                 compute_pairwise_distances,
                 xyz1.data,
                 xyz2.data,

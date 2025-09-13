@@ -11,10 +11,10 @@ import xarray.backends.locks
 import xarray.core.indexing
 
 from xmdpy.parsers import (
-    get_trajectory_parsing_fn,
     get_num_frames_and_atoms,
     TrajectoryParsingFn,
 )
+from xmdpy.trajectory_formats import get_trajectory_parsing_fn
 
 from xmdpy.types import FloatLike, SingleDType
 

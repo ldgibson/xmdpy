@@ -7,3 +7,5 @@ _build/
 auto_examples/
 gen_api/
 tests/data/test_traj_*
+benchmarks/
+.vscode/tasks.json
