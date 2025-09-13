@@ -1,14 +1,16 @@
 from enum import StrEnum
 
-from xmdpy.parsers import TrajectoryParsingFn, read_xyz_frames
+from xmdpy.parsers import TrajectoryParsingFn, read_xyz_frames, read_xdatcar_frames
 
 
 class TrajectoryFormat(StrEnum):
     XYZ = "xyz"
+    XDATCAR = "xdatcar"
 
 
 TRAJECTORY_PARSING_FNS: dict[TrajectoryFormat, TrajectoryParsingFn] = {
     TrajectoryFormat.XYZ: read_xyz_frames,
+    TrajectoryFormat.XDATCAR: read_xdatcar_frames,
 }
 
 
