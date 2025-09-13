@@ -12,6 +12,7 @@ import xarray.core.indexing
 
 from xmdpy.parsers import (
     get_num_frames_and_atoms,
+    get_xdatcar_num_frames_atoms_cell,
     TrajectoryParsingFn,
 )
 from xmdpy.trajectory_formats import get_trajectory_parsing_fn
@@ -101,10 +102,19 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
         cell: npt.NDArray[FloatLike] | None = None,
         file_format: str = "xyz",
     ) -> xr.Dataset:
+        dtype = np.dtype(dtype)
+
         traj_parsing_fn = get_trajectory_parsing_fn(file_format)
 
-        dtype = np.dtype(dtype)
-        n_frames, atoms = get_num_frames_and_atoms(filename_or_obj)
+        match file_format:
+            case "xdatcar":
+                n_frames, atoms, cell = get_xdatcar_num_frames_atoms_cell(
+                    filename_or_obj
+                )
+            case "xyz":
+                n_frames, atoms = get_num_frames_and_atoms(filename_or_obj)
+            case _:
+                raise ValueError(f"invalid format: {file_format}")
 
         time_var = xr.Variable(
             dims=("time",), data=np.arange(0, n_frames * dt, dt, dtype=type(dt))
