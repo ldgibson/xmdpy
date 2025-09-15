@@ -10,12 +10,10 @@ import xarray.backends
 import xarray.backends.locks
 import xarray.core.indexing
 
-from xmdpy.parsers import (
-    get_num_frames_and_atoms,
-    get_xdatcar_num_frames_atoms_cell,
-    TrajectoryParsingFn,
-)
-from xmdpy.trajectory_formats import get_trajectory_parsing_fn
+
+from xmdpy.parsers.parsers import TrajectoryParser, TRAJECTORY_PARSERS
+from xmdpy.parsers.metadata import METADATA_GETTERS
+from xmdpy.parsers.trajectory_formats import get_valid_format
 
 from xmdpy.types import FloatLike, SingleDType
 
@@ -32,13 +30,13 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
         shape: tuple[int, ...],
         dtype: SingleDType,
         lock: xarray.backends.locks.SerializableLock,
-        parsing_fn: TrajectoryParsingFn,
+        parser: TrajectoryParser,
     ) -> None:
         self.filename_or_obj = filename_or_obj
         self.shape = shape
         self.dtype = dtype
         self.lock = lock
-        self.parsing_fn = parsing_fn
+        self.parser = parser
 
     def __getitem__(self, key: Any):
         return xarray.core.indexing.explicit_indexing_adapter(
@@ -75,7 +73,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
             raise IndexError("time index out of range")
 
         with self.lock, open(self.filename_or_obj, "rb") as f:
-            positions = self.parsing_fn(
+            positions = self.parser(
                 file_handle=f,  # type: ignore
                 n_atoms=self.shape[1],
                 frames=frames,
@@ -104,17 +102,18 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
     ) -> xr.Dataset:
         dtype = np.dtype(dtype)
 
-        traj_parsing_fn = get_trajectory_parsing_fn(file_format)
+        valid_format = get_valid_format(file_format)
+        traj_parser = TRAJECTORY_PARSERS[valid_format]
+        n_frames, atoms, cell_from_file = METADATA_GETTERS[valid_format](
+            filename_or_obj
+        )
 
-        match file_format:
-            case "xdatcar":
-                n_frames, atoms, cell = get_xdatcar_num_frames_atoms_cell(
-                    filename_or_obj
-                )
-            case "xyz":
-                n_frames, atoms = get_num_frames_and_atoms(filename_or_obj)
-            case _:
-                raise ValueError(f"invalid format: {file_format}")
+        if cell is not None and cell_from_file is not None:
+            raise ValueError(
+                "cell information provided as argument and found in trajectory file"
+            )
+        elif cell is None:
+            cell = cell_from_file
 
         time_var = xr.Variable(
             dims=("time",), data=np.arange(0, n_frames * dt, dt, dtype=type(dt))
@@ -127,7 +126,7 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
             shape=(n_frames, len(atoms), 3),
             dtype=dtype,
             lock=xarray.backends.locks.SerializableLock(),
-            parsing_fn=traj_parsing_fn,
+            parser=traj_parser,
         )
 
         xyz_data = xarray.core.indexing.LazilyIndexedArray(backend_array)
