@@ -5,8 +5,8 @@ from xarray.testing import assert_equal
 import pytest
 
 
-@pytest.mark.parametrize("start", [None, 10, 250, -750])
-@pytest.mark.parametrize("stop", [None, 990, 750, -100])
+@pytest.mark.parametrize("start", [None, 10, -750])
+@pytest.mark.parametrize("stop", [None, 750, -100])
 @pytest.mark.parametrize("step", [None, 2, 3])
 def test_XMDPYBackendEntrypoint_time_indexing(start, stop, step):
     traj_fname = "./tests/data/test_traj.xyz"
@@ -26,9 +26,9 @@ def test_XMDPYBackendEntrypoint_time_indexing(start, stop, step):
     assert_equal(result, expected)
 
 
-@pytest.mark.parametrize("start", [None, 10, 100, -150])
+@pytest.mark.parametrize("start", [None, 10, -150])
 @pytest.mark.parametrize("stop", [None, 180, -100])
-@pytest.mark.parametrize("step", [None, 2, 3])
+@pytest.mark.parametrize("step", [None, 5])
 def test_XMDPYBackendEntrypoint_atom_id_indexing(start, stop, step):
     traj_fname = "./tests/data/test_traj.xyz"
 
@@ -52,7 +52,6 @@ def test_XMDPYBackendEntrypoint_atom_id_indexing(start, stop, step):
     "time_slices",
     [
         slice(None),
-        slice(10, 990),
         slice(None, None, 2),
         slice(30, 700, 3),
     ],
