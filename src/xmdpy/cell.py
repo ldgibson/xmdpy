@@ -8,8 +8,8 @@ import numpy.typing as npt
 import xarray as xr
 
 from xmdpy.types import (
+    CellArray,
     SingleDType,
-    CellNDArray,
 )
 
 __all__ = ["Cell", "normalize_cell"]
@@ -33,7 +33,7 @@ def normalize_cell(
     n_frames: int | None = None,
     dtype: SingleDType | None = None,
     copy: bool | None = None,
-) -> CellNDArray:
+) -> CellArray:
     cell = np.asarray(cell, dtype=dtype, copy=copy)
 
     if n_frames is None:
@@ -65,7 +65,7 @@ def normalize_cell(
 
         # Cell vectors per-frame
         case (3, (N, 3, 3)):
-            normalized_cell: CellNDArray = cell
+            normalized_cell: CellArray = cell
 
         # All other shapes are invalid
         case (_, _):
@@ -98,11 +98,11 @@ class Cell:
 
     def __array__(
         self, dtype: SingleDType | None = None, copy: bool | None = None
-    ) -> CellNDArray:
+    ) -> CellArray:
         return np.asarray(self._array, dtype=dtype, copy=copy)
 
     @property
-    def array(self) -> CellNDArray:
+    def array(self) -> CellArray:
         return self._array
 
     @property

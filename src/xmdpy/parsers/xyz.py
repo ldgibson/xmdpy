@@ -1,15 +1,17 @@
 import os
-
-from typing import BinaryIO
 from collections.abc import Sequence
+from typing import BinaryIO, Literal
+
 import numpy as np
 
-from xmdpy.types import SingleDType, TrajNDArray
+from xmdpy.types import SingleDType, TrajArray
 
-from .core import frame_generator, count_lines
+from .base_parser import count_lines, frame_generator
 
 
-def get_num_frames_and_atoms(filename: os.PathLike) -> tuple[int, list[str], None]:
+def get_xyz_dims_and_details(
+    filename: os.PathLike,
+) -> tuple[int, list[str], None, Literal[False]]:
     n_lines = count_lines(filename)
 
     atoms = []
@@ -26,7 +28,8 @@ def get_num_frames_and_atoms(filename: os.PathLike) -> tuple[int, list[str], Non
 
     n_frames = int(n_lines / (n_atoms + 2))
 
-    return n_frames, atoms, None
+    # xyz format does not read cell information
+    return n_frames, atoms, None, False
 
 
 def read_xyz_frames(
@@ -34,7 +37,7 @@ def read_xyz_frames(
     n_atoms: int,
     frames: Sequence[int],
     dtype: SingleDType = np.float64,
-) -> TrajNDArray:
+) -> TrajArray:
     lines_per_frame = n_atoms + 2
 
     positions = np.zeros((len(frames), n_atoms, 3), dtype=dtype)
