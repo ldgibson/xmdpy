@@ -1,9 +1,10 @@
 from collections.abc import Iterable
+
 import numpy as np
 import numpy.typing as npt
 
 from xmdpy.cell import Cell
-from xmdpy.types import FloatLike, TrajNDArray
+from xmdpy.types import FloatLike, TrajArray
 
 
 def wrap(xyz: npt.NDArray[FloatLike], cell: Cell) -> npt.NDArray[FloatLike]:
@@ -28,8 +29,8 @@ def compute_pairwise_distances_in_frame(
 
 
 def compute_pairwise_distance_vectors(
-    xyz1: TrajNDArray,
-    xyz2: TrajNDArray,
+    xyz1: TrajArray,
+    xyz2: TrajArray,
     cell: Cell | None = None,
 ) -> npt.NDArray:
     if xyz1.shape[0] != xyz2.shape[0]:
@@ -51,8 +52,8 @@ def compute_pairwise_distance_vectors(
 
 
 def compute_pairwise_distances(
-    xyz1: TrajNDArray,
-    xyz2: TrajNDArray,
+    xyz1: TrajArray,
+    xyz2: TrajArray,
     cell: Cell | None = None,
 ) -> npt.NDArray:
     distance_vectors = compute_pairwise_distance_vectors(xyz1, xyz2, cell)

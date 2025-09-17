@@ -10,13 +10,13 @@ import xarray.backends
 import xarray.backends.locks
 import xarray.core.indexing
 
-
-from xmdpy.parsers.parsers import TrajectoryParser, TRAJECTORY_PARSERS
-from xmdpy.parsers.metadata import METADATA_GETTERS
+from xmdpy.parsers.core import (
+    TRAJECTORY_DETAILS_GETTERS,
+    TRAJECTORY_PARSERS,
+    TrajectoryParser,
+)
 from xmdpy.parsers.trajectory_formats import get_valid_format
-
 from xmdpy.types import FloatLike, SingleDType
-
 
 type OuterIndex = (
     int | np.integer | slice | np.ndarray[tuple[int], np.dtype[np.integer]]
@@ -103,10 +103,15 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
         dtype = np.dtype(dtype)
 
         valid_format = get_valid_format(file_format)
+
+        n_frames, atoms, cell_from_file, variable_cell = TRAJECTORY_DETAILS_GETTERS[
+            valid_format
+        ](filename_or_obj)
+
+        if variable_cell:
+            valid_format = get_valid_format(file_format + "npt")
+
         traj_parser = TRAJECTORY_PARSERS[valid_format]
-        n_frames, atoms, cell_from_file = METADATA_GETTERS[valid_format](
-            filename_or_obj
-        )
 
         if cell is not None and cell_from_file is not None:
             raise ValueError(

@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from xmdpy.types import CellNDArray, TrajNDArray
+from xmdpy.types import CellArray, TrajArray
 
 
 @dataclass
 class Trajectory:
     atoms: tuple[str]
-    positions: TrajNDArray
-    cell: CellNDArray | None = None
+    positions: TrajArray
+    cell: CellArray | None = None
