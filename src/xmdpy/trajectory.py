@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
-from xmdpy.types import CellArray, TrajArray
+from xmdpy.types import (
+    CellArray,
+    TrajArray,
+)
 
 
 @dataclass

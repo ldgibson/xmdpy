@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable, Container, Generator, Sequence
 from typing import BinaryIO
+
+from xmdpy.types import IntArray, PathLike
 
 
 def frame_generator(
     f: BinaryIO,
-    frames: Sequence[int],
+    frames: Sequence[int] | IntArray,
     lines_per_frame: int,
     skip_lines_in_frame: int | Container[int] = 0,
     usecol: slice[int] | None = None,
@@ -56,7 +57,7 @@ def _make_gen(reader: Callable[[int], bytes | None]) -> Generator[bytes]:
         buffer = reader(1024 * 1024)
 
 
-def count_lines(filename: os.PathLike) -> int:
+def count_lines(filename: PathLike) -> int:
     f = open(filename, "rb", buffering=0)
     f_gen = _make_gen(f.read)
     return sum(buffer.count(b"\n") for buffer in f_gen)
