@@ -1,8 +1,7 @@
-import os
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import BinaryIO
 
-from xmdpy.types import CellArray3x3, SingleDType, TrajArray
+from xmdpy.types import CellArray3x3, IntArray, PathLike, SingleDType, TrajArray
 
 from .trajectory_formats import TrajectoryFormat
 from .xdatcar import (
@@ -10,15 +9,15 @@ from .xdatcar import (
     read_xdatcar_frames,
     read_xdatcar_frames_with_cell,
 )
-from .xyz import get_xyz_dims_and_details, read_xyz_frames
+from .xyz import get_xyz_dims_and_details, read_xyz_frames_atom_slice
 
 type TrajectoryParser = Callable[
-    [BinaryIO, int, Sequence[int], SingleDType],
+    [BinaryIO, tuple[IntArray, IntArray, IntArray], int, SingleDType],
     TrajArray,
 ]
 
 type TrajectoryDetailsGetter = Callable[
-    [os.PathLike],
+    [PathLike],
     tuple[
         int,
         list[str],
@@ -28,7 +27,7 @@ type TrajectoryDetailsGetter = Callable[
 ]
 
 TRAJECTORY_PARSERS: dict[TrajectoryFormat, TrajectoryParser] = {
-    TrajectoryFormat.XYZ: read_xyz_frames,
+    TrajectoryFormat.XYZ: read_xyz_frames_atom_slice,
     TrajectoryFormat.XDATCAR: read_xdatcar_frames,
     TrajectoryFormat.XDATCAR_NPT: read_xdatcar_frames_with_cell,
 }
@@ -37,4 +36,5 @@ TRAJECTORY_PARSERS: dict[TrajectoryFormat, TrajectoryParser] = {
 TRAJECTORY_DETAILS_GETTERS: dict[TrajectoryFormat, TrajectoryDetailsGetter] = {
     TrajectoryFormat.XYZ: get_xyz_dims_and_details,
     TrajectoryFormat.XDATCAR: get_xdatcar_dims_and_details,
+    TrajectoryFormat.XDATCAR_NPT: get_xdatcar_dims_and_details,
 }

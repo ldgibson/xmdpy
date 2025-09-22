@@ -34,6 +34,31 @@ def normalize_cell(
     dtype: SingleDType | None = None,
     copy: bool | None = None,
 ) -> CellArray:
+    """Normalize the input to match the standard shape of (n_frames, 3, 3)
+
+    Parameters
+    ----------
+    cell : npt.ArrayLike
+        Input cell
+    n_frames : int | None, optional
+        Specific number of frames, by default None
+    dtype : SingleDType | None, optional
+        dtype for the array, by default None
+    copy : bool | None, optional
+        Controls whether the input cell needs to be copied, by default None
+
+    Returns
+    -------
+    CellArray
+        Array with dimensions normalized into (n_frames, 3, 3)
+
+    Raises
+    ------
+    ValueError
+        If broadcasting to the normalized shape is not possible
+    ShapeError
+        If the input cell cannot be normalized
+    """
     cell = np.asarray(cell, dtype=dtype, copy=copy)
 
     if n_frames is None:
@@ -137,21 +162,17 @@ class Cell:
         """Exports instance to a `xarray.DataArray` with optional `time_index`.
 
         Dimensions in DataArray will be `"cell_vector"` and `"xyz_dim"` by
-        default. If a `time_index` is supplied, and/or the length of the
-        `Cell` is greater than one, then a `"frame"` dimension will also be
-        included.
+        default.
 
-        Args:
-            time_index (Sequence[int] | int | None, optional): If specified,
-            `time_index` is used as index for `frame` dimension of resulting
-            DataArray. Otherwise, the index will try to be inferred from the
-            length of the `Cell` instance. If the length is greater than 1,
-            then `time_index` will be set to `range(length)`. If the length
-            is equal to 1, then no `frame` dimension is added to the DataArray.
-            Defaults to None.
+        Parameters
+        ----------
+        time_index : Sequence[int] | int | None, optional
+            Specify the index for the dimension named 'time'.
 
-        Returns:
-            xr.DataArray: DataArray with labeled coordinates and dimensions.
+        Returns
+        -------
+        xr.DataArray
+            DataArray with labeled coordinates and dimensions.
         """
         if time_index is None:
             time_index = range(len(self))
