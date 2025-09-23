@@ -7,7 +7,6 @@ _build/
 auto_examples/
 gen_api/
 .coverage
-tests/data/test_traj_*
-tests/data/test_100000.XDATCAR
+tests/data/
 benchmarks/
 .vscode/tasks.json
