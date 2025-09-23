@@ -11,7 +11,7 @@ def frame_generator(
     frames: Sequence[int] | IntArray,
     lines_per_frame: int,
     skip_lines_in_frame: int | Container[int] = 0,
-    usecol: slice[int] | None = None,
+    usecol: slice[int | None] | None = None,
 ) -> Generator[list[list[str]]]:
     if isinstance(skip_lines_in_frame, int):
         skip_lines_in_frame = set(range(skip_lines_in_frame))
@@ -39,7 +39,9 @@ def frame_generator(
 
 
 def _parse_frame(
-    frame_bytes: list[bytes], skip_lines_in_frame: Container[int], usecol: slice[int]
+    frame_bytes: list[bytes],
+    skip_lines_in_frame: Container[int],
+    usecol: slice[int | None],
 ) -> list[list[str]]:
     buffer = []
 
@@ -50,11 +52,11 @@ def _parse_frame(
     return buffer
 
 
-def _make_gen(reader: Callable[[int], bytes | None]) -> Generator[bytes]:
-    buffer = reader(1024 * 1024)
+def _make_gen(reader: Callable[[int], bytes | None], size=1048576) -> Generator[bytes]:
+    buffer = reader(size)
     while buffer:
         yield buffer
-        buffer = reader(1024 * 1024)
+        buffer = reader(size)
 
 
 def count_lines(filename: PathLike) -> int:
