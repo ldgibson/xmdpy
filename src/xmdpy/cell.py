@@ -16,16 +16,7 @@ __all__ = ["Cell", "normalize_cell"]
 
 
 class ShapeError(Exception):
-    def __init__(
-        self,
-        invalid_shape: tuple[int, ...],
-        target_shape: tuple[int, ...] | None = None,
-    ) -> None:
-        self.message = f"Invalid shape: {invalid_shape}."
-
-        if target_shape is not None:
-            self.message += f" Shape must be: {target_shape}."
-        super().__init__(self.message)
+    pass
 
 
 def normalize_cell(
@@ -94,7 +85,7 @@ def normalize_cell(
 
         # All other shapes are invalid
         case (_, _):
-            raise ShapeError(invalid_shape=cell.shape)
+            raise ShapeError(f"Invalid shape: {cell.shape}")
 
     return normalized_cell
 
@@ -178,12 +169,16 @@ class Cell:
             time_index = range(len(self))
 
         elif isinstance(time_index, int):
+            if time_index <= 0:
+                raise ValueError("time index cannot be equal to or less than 0")
             time_index = range(time_index)
 
-        if len(time_index) > len(self):
+        if len(time_index) != len(self) and len(self) == 1:
             cell_arr = np.broadcast_to(self._array, (len(time_index), 3, 3))
-        else:
+        elif len(time_index) == len(self):
             cell_arr = self._array
+        else:
+            raise ValueError("time_index length less than number of frames in Cell")
 
         return xr.DataArray(
             name="cell",
