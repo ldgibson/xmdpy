@@ -10,7 +10,15 @@ from xmdpy.types import FloatLike, TrajArray
 def wrap(xyz: npt.NDArray[FloatLike], cell: Cell) -> npt.NDArray[FloatLike]:
     if not cell.is_orthorhombic():
         raise NotImplementedError("Cell must be orthorhombic to wrap coordinates.")
-    return xyz - cell.lengths * np.round(xyz / cell.lengths)
+
+    ndims = len(xyz.shape)
+
+    if ndims > 2:
+        cell_lengths = np.expand_dims(cell.lengths, axis=tuple(range(1, ndims - 1)))
+    else:
+        cell_lengths = cell.lengths
+
+    return xyz - cell_lengths * np.round(xyz / cell_lengths)
 
 
 def compute_pairwise_distances_in_frame(
@@ -60,7 +68,7 @@ def compute_pairwise_distances(
     return np.linalg.norm(distance_vectors, axis=-1)
 
 
-def is_symmetric(arr, rtol=1e-05, atol=1e-08):
+def is_symmetric(arr: np.ndarray, rtol: float = 1e-05, atol: float = 1e-08) -> bool:
     if arr.ndim > 2:
         return False
 
@@ -92,8 +100,8 @@ def compute_radial_distribution(
     r_edges = np.linspace(*r_range, num=bins + 1)
     dr = r_edges[1] - r_edges[0]
 
-    if volume.shape:
-        volume = np.reshape(volume, shape=(n_frames, -1))
+    if not volume.shape:
+        volume = np.broadcast_to(volume, shape=(n_frames, 1))
 
     # Compute weights of each distance
     ref_number_density = num_pairs / volume
