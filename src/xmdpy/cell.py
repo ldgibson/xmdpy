@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import cached_property
 from typing import Literal
 
 import numpy as np
@@ -90,6 +91,17 @@ def normalize_cell(
     return normalized_cell
 
 
+def compute_angle_degrees(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return (
+        np.arccos(
+            np.sum(a * b, axis=1)
+            / (np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1))
+        )
+        * 180
+        / np.pi
+    )
+
+
 class Cell:
     def __init__(
         self,
@@ -129,9 +141,12 @@ class Cell:
     def lengths(self) -> np.ndarray[tuple[int, Literal[3]], np.dtype[np.float64]]:
         return np.linalg.norm(self._array, axis=-1)
 
-    @property
-    def angles(self) -> None:
-        raise NotImplementedError("Cell angles not yet implemented.")
+    @cached_property
+    def angles(self) -> np.ndarray[tuple[int, Literal[3]], np.dtype[np.float64]]:
+        alpha = compute_angle_degrees(self._array[:, 1], self._array[:, 2])
+        beta = compute_angle_degrees(self._array[:, 0], self._array[:, 2])
+        gamma = compute_angle_degrees(self._array[:, 0], self._array[:, 1])
+        return np.column_stack([alpha, beta, gamma])
 
     def is_orthorhombic(self) -> bool:
         """Checks if cell is orthorhombic."""
