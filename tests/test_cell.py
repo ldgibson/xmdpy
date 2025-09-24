@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from xmdpy.cell import Cell, ShapeError, normalize_cell
+from xmdpy.cell import Cell, ShapeError, compute_angle_degrees, normalize_cell
 
 
 @pytest.fixture
@@ -71,6 +71,43 @@ def test_normalize_cell_default_n_frames(cell) -> None:
     np.testing.assert_array_equal(result, np.diag([4, 4, 4])[None, :, :])
 
 
+@pytest.mark.parametrize(
+    ["a", "b", "expected"],
+    [
+        (
+            np.array([[1, 0, 0]]),
+            np.array([[1, 0, 0]]),
+            np.array(
+                [
+                    0.0,
+                ]
+            ),
+        ),
+        (
+            np.array([[1, 0, 0]]),
+            np.array([[1, 1, 0]]),
+            np.array(
+                [
+                    45.0,
+                ]
+            ),
+        ),
+        (
+            np.array([[1, 0, 0]]),
+            np.array([[0, 1, 0]]),
+            np.array(
+                [
+                    90.0,
+                ]
+            ),
+        ),
+    ],
+)
+def test_compute_angle_degrees(a, b, expected) -> None:
+    result = compute_angle_degrees(a, b)
+    np.testing.assert_almost_equal(result, expected)
+
+
 def test_cell_init(expected_cell) -> None:
     result = Cell(array=np.array([[4, 0, 0], [0, 4, 0], [0, 0, 4]]), n_frames=10)
     np.testing.assert_array_equal(result.array, expected_cell.array)
@@ -132,11 +169,10 @@ def test_cell_lenghts() -> None:
     np.testing.assert_almost_equal(cell.lengths, np.full((10, 3), 4))
 
 
-@pytest.mark.xfail
 def test_cell_angles() -> None:
     cell = Cell(array=np.array([[4, 0, 0], [0, 4, 0], [4, 0, 4]]), n_frames=2)
     np.testing.assert_almost_equal(
-        cell.angles, np.array([[90.0, 90.0, 45.0], [90.0, 90.0, 45.0]])
+        cell.angles, np.array([[90.0, 45.0, 90.0], [90.0, 45.0, 90.0]])
     )
 
 
