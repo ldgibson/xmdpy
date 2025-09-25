@@ -1,7 +1,6 @@
 from typing import Sequence
 
-import dask
-from dask.array import map_blocks as da_map_blocks
+import dask.array as da
 import numpy.typing as npt
 import xarray as xr
 from xarray.core.dataarray import DataArray
@@ -42,6 +41,31 @@ class TrajectoryAccessor:
 
         if "cell" in self._obj:
             self.cell = Cell(self._obj["cell"])
+
+    def get_dim_chunks(
+        self, dim: str | None = None, size: int = 100
+    ) -> tuple[int | tuple[int, ...], ...]:
+        if dim is None:
+            dim = "time"
+
+        if dim not in self._obj.sizes:
+            raise ValueError(f"dimension '{dim}' not found")
+
+        if dim in self._obj.chunksizes:
+            return self._obj.chunksizes[dim]
+
+        dim_size = self._obj.sizes[dim]
+
+        if dim_size <= size:
+            return (dim_size,)
+
+        n_chunks = round(dim_size / size)
+        chunks = [size for _ in range(n_chunks)]
+
+        if dim_size % size:
+            chunks.append(dim_size % size)
+
+        return tuple(chunks)
 
     def set_cell(self, cell: npt.ArrayLike) -> Dataset:
         """Adds or updates the cell variable in the Dataset.
@@ -107,6 +131,11 @@ class TrajectoryAccessor:
             sel1 = self._obj.sel(atoms=atoms1)
         else:
             sel1 = self._obj.sel(atom_id=atoms1)
+
+        # adds dimension back into xyz if only a single atom was selected
+        if "atom_id" not in sel1.xyz.dims:
+            sel1 = sel1.assign({"xyz": sel1.xyz.expand_dims("atom_id", axis=1)})
+
         xyz1 = sel1.xyz
 
         if atoms2:
@@ -119,12 +148,13 @@ class TrajectoryAccessor:
         xyz2 = sel2.xyz
 
         if lazy:
-            if dask.is_dask_collection(self._obj.xyz.data):
-                frame_chunks = self._obj.xyz.chunks[0]
-                chunks = (frame_chunks, (len(sel1.atoms),), (len(sel2.atoms),))
-            else:
-                chunks = "auto"
-            distances = da_map_blocks(
+            chunks = (
+                self.get_dim_chunks("time"),
+                sel1.xmd.get_dim_chunks("atom_id"),
+                sel2.xmd.get_dim_chunks("atom_id"),
+            )
+
+            distances = da.map_blocks(
                 compute_pairwise_distances,
                 xyz1.data,
                 xyz2.data,
@@ -135,15 +165,23 @@ class TrajectoryAccessor:
         else:
             distances = compute_pairwise_distances(xyz1.values, xyz2.values, cell)
 
+        atom_coords = [
+            ("atom_id1", sel1.atom_id.data),
+            ("atom_id2", sel2.atom_id.data),
+            ("atom_id1", sel1.atoms.data),
+            ("atom_id2", sel2.atoms.data),
+        ]
+        coords = {"time": self._obj.time.data}
+
+        for name, atom_sel in atom_coords:
+            if atom_sel.shape:
+                coords[name] = (name, atom_sel)
+            else:
+                coords[name] = (name, atom_sel[None])
+
         return xr.DataArray(
             name="distances",
             data=distances,
-            coords={
-                "frame": self._obj.frame.data,
-                "atom_id1": ("atom_id1", sel1.atom_id.data),
-                "atom_id2": ("atom_id2", sel2.atom_id.data),
-                "atoms1": ("atom_id1", sel1.atoms.data),
-                "atoms2": ("atom_id2", sel2.atoms.data),
-            },
-            dims=["frame", "atom_id1", "atom_id2"],
+            coords=coords,
+            dims=["time", "atom_id1", "atom_id2"],
         )

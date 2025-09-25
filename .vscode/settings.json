@@ -9,17 +9,17 @@
     "python.analysis.packageIndexDepths": [
         {
             "name": "",
-            "depth": 5,
-            "includeAllSymbols": true
+            "depth": 3,
+            "includeAllSymbols": false
         },
         {
             "name": "dask",
-            "depth": 20,
-            "includeAllSymbols": true
+            "depth": 5,
+            "includeAllSymbols": false
         },
         {
             "name": "xarray",
-            "depth": 20,
+            "depth": 5,
             "includeAllSymbols": true
         },
     ],
