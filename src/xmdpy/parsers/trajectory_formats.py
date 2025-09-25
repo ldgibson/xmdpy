@@ -4,7 +4,6 @@ from enum import StrEnum
 class TrajectoryFormat(StrEnum):
     XYZ = "xyz"
     XDATCAR = "xdatcar"
-    XDATCAR_NPT = "xdatcar_npt"
 
 
 class InvalidTrajectoryFormatError(NotImplementedError):
