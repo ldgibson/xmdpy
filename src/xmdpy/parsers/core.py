@@ -7,7 +7,6 @@ from .trajectory_formats import TrajectoryFormat
 from .xdatcar import (
     get_xdatcar_dims_and_details,
     read_xdatcar_frames,
-    read_xdatcar_frames_with_cell,
 )
 from .xyz import get_xyz_dims_and_details, read_xyz_frames_atom_slice
 
@@ -29,12 +28,10 @@ type TrajectoryDetailsGetter = Callable[
 TRAJECTORY_PARSERS: dict[TrajectoryFormat, TrajectoryParser] = {
     TrajectoryFormat.XYZ: read_xyz_frames_atom_slice,
     TrajectoryFormat.XDATCAR: read_xdatcar_frames,
-    TrajectoryFormat.XDATCAR_NPT: read_xdatcar_frames_with_cell,
 }
 
 
 TRAJECTORY_DETAILS_GETTERS: dict[TrajectoryFormat, TrajectoryDetailsGetter] = {
     TrajectoryFormat.XYZ: get_xyz_dims_and_details,
     TrajectoryFormat.XDATCAR: get_xdatcar_dims_and_details,
-    TrajectoryFormat.XDATCAR_NPT: get_xdatcar_dims_and_details,
 }
