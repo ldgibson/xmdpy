@@ -1,5 +1,6 @@
 import os
 
+import dask
 import numpy as np
 import pytest
 import xarray as xr
@@ -10,6 +11,9 @@ from xmdpy.backend import XMDPYBackendEntrypoint
 
 @pytest.fixture
 def fake_filesystem(fs):
+    dask_real_path = os.path.dirname(dask.__file__)
+    fs.add_real_directory(dask_real_path)
+
     MOCK_XYZ_FRAME = (
         "3\ni = {0}\nO 0.0 0.0 {0:.1f}\nH 0.9 0.7 {0:.1f}\nH -0.9 0.7 {0:.1f}\n"
     )

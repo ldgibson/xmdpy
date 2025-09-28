@@ -1,5 +1,6 @@
 import os
 
+import dask
 import numpy as np
 import pytest
 import xarray as xr
@@ -10,6 +11,9 @@ from xmdpy.backend import XMDPYBackendEntrypoint
 
 @pytest.fixture
 def fake_filesystem(fs):
+    dask_real_path = os.path.dirname(dask.__file__)
+    fs.add_real_directory(dask_real_path)
+
     MOCK_XDATCAR_HEADER = (
         "COMMENT\n1.0\n10.0 0.0 0.0\n0.0 10.0 0.0\n0.0 0.0 10.0\nO H\n1 2\n"
     )
