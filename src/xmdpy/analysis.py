@@ -3,22 +3,53 @@ from collections.abc import Iterable
 import numpy as np
 import numpy.typing as npt
 
-from xmdpy.cell import Cell
 from xmdpy.types import FloatLike, TrajArray
 
 
-def wrap(xyz: npt.NDArray[FloatLike], cell: Cell) -> npt.NDArray[FloatLike]:
-    if not cell.is_orthorhombic():
-        raise NotImplementedError("Cell must be orthorhombic to wrap coordinates.")
-
-    ndims = len(xyz.shape)
-
-    if ndims > 2:
-        cell_lengths = np.expand_dims(cell.lengths, axis=tuple(range(1, ndims - 1)))
-    else:
-        cell_lengths = cell.lengths
+def wrap(
+    xyz: npt.NDArray[FloatLike], cell_lengths: np.ndarray[tuple[int]]
+) -> npt.NDArray[FloatLike]:
+    if xyz.ndim > 2:
+        cell_lengths = np.expand_dims(cell_lengths, axis=tuple(range(xyz.ndim - 2)))
+    # else:
+    #     cell_lengths = cell.lengths
 
     return xyz - cell_lengths * np.round(xyz / cell_lengths)
+
+
+def wrap_trajectory(
+    xyz: np.ndarray[tuple[int, int, int]], cell_lengths: np.ndarray[tuple[int, int]]
+) -> np.ndarray[tuple[int, int, int]]:
+    return np.stack(
+        [
+            wrap(xyz_i, cell_lengths_i)
+            for xyz_i, cell_lengths_i in zip(xyz, cell_lengths)
+        ]
+    )
+
+
+def compute_distance_vectors(
+    xyz1: np.ndarray[tuple[int, int]],
+    xyz2: np.ndarray[tuple[int, int]],
+    cell_lengths: np.ndarray[tuple[int]] | None = None,
+) -> np.ndarray[tuple[int, int]]:
+    distances = np.stack(
+        [np.subtract.outer(xyz1[:, i], xyz2[:, i]) for i in range(3)], axis=-1
+    )
+
+    if cell_lengths is not None:
+        distances = wrap(distances, cell_lengths)
+
+    return distances
+
+
+def compute_distances(
+    xyz1: np.ndarray[tuple[int, int]],
+    xyz2: np.ndarray[tuple[int, int]],
+    cell_lengths: np.ndarray[tuple[int]] | None = None,
+) -> np.ndarray[tuple[int]]:
+    distance_vectors = compute_distance_vectors(xyz1, xyz2, cell_lengths)
+    return np.linalg.norm(distance_vectors, axis=-1)
 
 
 def compute_pairwise_distances_in_frame(
@@ -39,7 +70,7 @@ def compute_pairwise_distances_in_frame(
 def compute_pairwise_distance_vectors(
     xyz1: TrajArray,
     xyz2: TrajArray,
-    cell: Cell | None = None,
+    cell: np.ndarray[tuple[int, int]] | None = None,
 ) -> npt.NDArray:
     if xyz1.shape[0] != xyz2.shape[0]:
         raise ValueError("Number of frames in `xyz1` do not match `xyz2`.")
@@ -53,8 +84,8 @@ def compute_pairwise_distance_vectors(
     for i, (_xyz1, _xyz2) in enumerate(zip(xyz1, xyz2)):
         distance_vectors[i] = compute_pairwise_distances_in_frame(_xyz1, _xyz2)
 
-    if cell is not None:
-        distance_vectors = wrap(distance_vectors, cell)
+        if cell is not None:
+            distance_vectors[i] = wrap(distance_vectors[i], cell[i])
 
     return distance_vectors
 
@@ -62,7 +93,7 @@ def compute_pairwise_distance_vectors(
 def compute_pairwise_distances(
     xyz1: TrajArray,
     xyz2: TrajArray,
-    cell: Cell | None = None,
+    cell: np.ndarray[tuple[int, int]] | None = None,
 ) -> npt.NDArray:
     distance_vectors = compute_pairwise_distance_vectors(xyz1, xyz2, cell)
     return np.linalg.norm(distance_vectors, axis=-1)
