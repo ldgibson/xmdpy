@@ -2,12 +2,14 @@ import numpy as np
 import pytest
 
 from xmdpy.analysis import (
+    compute_distance_vectors,
     compute_pairwise_distance_vectors,
     compute_pairwise_distances,
     compute_pairwise_distances_in_frame,
     compute_radial_distribution,
     is_symmetric,
     wrap,
+    wrap_trajectory,
 )
 from xmdpy.cell import Cell
 
@@ -61,13 +63,32 @@ def non_orthorhombic_cell() -> Cell:
 
 
 def test_wrap_success(wrappable_xyz, valid_cell, wrapped_xyz) -> None:
-    result = wrap(wrappable_xyz, valid_cell)
+    result = wrap(wrappable_xyz[0], valid_cell.lengths[0])
+    np.testing.assert_array_almost_equal(result, wrapped_xyz[0])
+
+
+def test_wrap_trajectory_success(wrappable_xyz, valid_cell, wrapped_xyz) -> None:
+    result = wrap_trajectory(wrappable_xyz, valid_cell.lengths)
     np.testing.assert_array_almost_equal(result, wrapped_xyz)
 
 
-def test_wrap_not_orthorhombic(wrappable_xyz, non_orthorhombic_cell) -> None:
-    with pytest.raises(NotImplementedError):
-        wrap(wrappable_xyz, non_orthorhombic_cell)
+def test_compute_distance_vectors_no_cell(wrapped_xyz, distance_vectors) -> None:
+    xyz1 = wrapped_xyz[0]
+    xyz2 = wrapped_xyz[0]
+
+    result = compute_distance_vectors(xyz1, xyz2)
+    np.testing.assert_array_almost_equal(result, distance_vectors[0])
+
+
+def test_compute_distance_vectors_with_cell(
+    wrappable_xyz, valid_cell, distance_vectors
+) -> None:
+    xyz1 = wrappable_xyz[0]
+    xyz2 = wrappable_xyz[0]
+    cell_lengths = valid_cell.lengths[0]
+
+    result = compute_distance_vectors(xyz1, xyz2, cell_lengths)
+    np.testing.assert_array_almost_equal(result, distance_vectors[0])
 
 
 def test_compute_pairwise_distances_in_frame(wrapped_xyz, distance_vectors) -> None:
@@ -92,7 +113,7 @@ def test_compute_pairwise_distance_vectors_with_cell(
 ) -> None:
     xyz1 = wrappable_xyz
     xyz2 = wrappable_xyz
-    result = compute_pairwise_distance_vectors(xyz1, xyz2, valid_cell)
+    result = compute_pairwise_distance_vectors(xyz1, xyz2, valid_cell.lengths)
     np.testing.assert_array_almost_equal(result, distance_vectors)
 
 
@@ -117,7 +138,7 @@ def test_compute_pairwise_distances_with_cell(
 ) -> None:
     xyz1 = wrappable_xyz
     xyz2 = wrappable_xyz
-    result = compute_pairwise_distances(xyz1, xyz2, valid_cell)
+    result = compute_pairwise_distances(xyz1, xyz2, valid_cell.lengths)
     np.testing.assert_array_almost_equal(
         result, np.linalg.norm(distance_vectors, axis=-1)
     )

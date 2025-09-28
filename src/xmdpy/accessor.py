@@ -1,12 +1,12 @@
 from typing import Sequence
 
-import dask.array as da
+import numpy as np
 import numpy.typing as npt
 import xarray as xr
 from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
 
-from xmdpy.analysis import compute_pairwise_distances
+from xmdpy.analysis import compute_distance_vectors
 from xmdpy.cell import Cell
 
 
@@ -40,32 +40,7 @@ class TrajectoryAccessor:
         self._obj = xarray_obj
 
         if "cell" in self._obj:
-            self.cell = Cell(self._obj["cell"])
-
-    def get_dim_chunks(
-        self, dim: str | None = None, size: int = 100
-    ) -> tuple[int | tuple[int, ...], ...]:
-        if dim is None:
-            dim = "time"
-
-        if dim not in self._obj.sizes:
-            raise ValueError(f"dimension '{dim}' not found")
-
-        if dim in self._obj.chunksizes:
-            return self._obj.chunksizes[dim]
-
-        dim_size = self._obj.sizes[dim]
-
-        if dim_size <= size:
-            return (dim_size,)
-
-        n_chunks = round(dim_size / size)
-        chunks = [size for _ in range(n_chunks)]
-
-        if dim_size % size:
-            chunks.append(dim_size % size)
-
-        return tuple(chunks)
+            self.cell = Cell._from_normalized(self._obj["cell"].data)
 
     def set_cell(self, cell: npt.ArrayLike) -> Dataset:
         """Adds or updates the cell variable in the Dataset.
@@ -91,97 +66,143 @@ class TrajectoryAccessor:
         # TODO
         raise NotImplementedError()
 
+    def atom_sel(self, atoms: str | int | Sequence[int] | slice) -> Dataset:
+        """Returns a dataset for the given atom selection.
+
+        Parameters
+        ----------
+        atoms : str | int | Sequence[int] | slice
+            Index for selecting atoms
+
+        Returns
+        -------
+        Dataset
+            Atom selection
+        """
+        if isinstance(atoms, str):
+            return self._obj.where(self._obj.atoms == atoms, drop=True)
+        elif isinstance(atoms, int):
+            return self._obj.where(self._obj.atom_id == atoms, drop=True)
+        else:
+            return self._obj.sel(atom_id=atoms)
+
+    def get_atom_selections(
+        self, *args: str | int | Sequence[int] | slice, update_coord_names: bool = True
+    ) -> tuple[Dataset, ...]:
+        """Returns a dataset for each selection provided.
+
+        Parameters
+        ----------
+        update_coord_names : bool, optional
+            If True, appends 1, 2, ... to 'atom_id' and 'atoms' coordinates
+            based on the order the selections were provided, by default True
+
+        Returns
+        -------
+        tuple[Dataset, ...]
+            Datasets of atom selections
+        """
+        atom_selections = []
+        n_args = len(args)
+
+        for i, atoms in enumerate(args, start=1):
+            atom_sel_ds = self.atom_sel(atoms)
+
+            if update_coord_names and n_args > 1:
+                atom_sel_ds = atom_sel_ds.rename(
+                    {"atom_id": f"atom_id{i}", "atoms": f"atoms{i}"}
+                )
+
+            atom_selections.append(atom_sel_ds)
+
+        return tuple(atom_selections)
+
     def get_distances(
         self,
         atoms1: str | int | Sequence[int],
         atoms2: str | int | Sequence[int] | None = None,
         mic: bool = True,
-        lazy: bool = True,
+        vector: bool = False,
     ) -> DataArray:
-        """Compute the pairwise distances between pairs of atoms.
+        """Compute the pairwise distances between selections of atoms.
 
-        Args:
-            atoms1 (str | Sequence[int]): Selection of atoms - can be either a `str`,
-            where all atoms matching that name are selected; or one or more `atom_id`s.
-            If `atoms2=None`, then all unique pairs from `atoms1` selection are used.
-            atoms2 (str | Sequence[int] | None, optional): Second selection of atoms.
-            Follows the same rules as `atoms1`. Defaults to None.
-            mic (bool, optional): Use minimum image convention. Requires cell parameters
-            to be defined. Defaults to True.
-            lazy (bool, optional): Return a lazy view of the distances using Dask.
-            Defaults to True.
+        Parameters
+        ----------
+        atoms1 : str | Sequence[int]
+            Selection of atoms - can be either a `str`, where all atoms
+            matching that name are selected; or one or more `atom_id`s.
+            If `atoms2=None`, then all unique pairs from `atoms1` selection
+            are used.
+        atoms2 : str | Sequence[int] | None, optional
+            Second selection of atoms. Follows the same rules as `atoms1`,
+            by default None.
+        mic : bool, optional
+            Use minimum image convention. Requires cell parameters to be
+            defined, by default True
+        vector : bool, optional
+            If True, returns distances as vectors, otherwise distances
+            returned as magnitudes, by default False
 
-        Raises:
-            CellNotDefinedError: If using `mic=True` without the Dataset containing
-            a `cell` variable.
+        Returns
+        -------
+        xr.DataArray
+            Pairwise distances
 
-        Returns:
-            xr.DataArray: Pairwise distances with coordinates corresponding to
-            `atoms1` and `atoms2`. If `atoms2=None`, then the second selection
-            will just match the selection from `atoms1`.
+        Raises
+        ------
+        CellNotDefinedError
+            If using `mic=True` without the Dataset containing a cell variable
+
         """
+        core_dims = [
+            ["atom_id1", "xyz_dim"],
+            ["atom_id2", "xyz_dim"],
+        ]
+
         if mic:
             if "cell" not in self._obj:
                 raise CellNotDefinedError()
-            cell = self.cell
+            cell_lengths = self.cell.lengths
+            core_dims.append(["xyz_dim"])
         else:
-            cell = None
+            cell_lengths = None
+            core_dims.append([])
 
-        if isinstance(atoms1, str):
-            sel1 = self._obj.sel(atoms=atoms1)
-        else:
-            sel1 = self._obj.sel(atom_id=atoms1)
+        if atoms2 is None:
+            atoms2 = atoms1
 
-        # adds dimension back into xyz if only a single atom was selected
-        if "atom_id" not in sel1.xyz.dims:
-            sel1 = sel1.assign({"xyz": sel1.xyz.expand_dims("atom_id", axis=1)})
-
-        xyz1 = sel1.xyz
-
-        if atoms2:
-            if isinstance(atoms2, str):
-                sel2 = self._obj.sel(atoms=atoms2)
-            else:
-                sel2 = self._obj.sel(atom_id=atoms2)
-        else:
-            sel2 = sel1
-        xyz2 = sel2.xyz
-
-        if lazy:
-            chunks = (
-                self.get_dim_chunks("time"),
-                sel1.xmd.get_dim_chunks("atom_id"),
-                sel2.xmd.get_dim_chunks("atom_id"),
-            )
-
-            distances = da.map_blocks(
-                compute_pairwise_distances,
-                xyz1.data,
-                xyz2.data,
-                cell,
-                dtype=float,
-                chunks=chunks,
-            )
-        else:
-            distances = compute_pairwise_distances(xyz1.values, xyz2.values, cell)
-
-        atom_coords = [
-            ("atom_id1", sel1.atom_id.data),
-            ("atom_id2", sel2.atom_id.data),
-            ("atom_id1", sel1.atoms.data),
-            ("atom_id2", sel2.atoms.data),
-        ]
-        coords = {"time": self._obj.time.data}
-
-        for name, atom_sel in atom_coords:
-            if atom_sel.shape:
-                coords[name] = (name, atom_sel)
-            else:
-                coords[name] = (name, atom_sel[None])
-
-        return xr.DataArray(
-            name="distances",
-            data=distances,
-            coords=coords,
-            dims=["time", "atom_id1", "atom_id2"],
+        atom_sel1, atom_sel2 = self.get_atom_selections(
+            atoms1, atoms2, update_coord_names=True
         )
+
+        distances: DataArray = xr.apply_ufunc(
+            compute_distance_vectors,
+            atom_sel1.xyz,
+            atom_sel2.xyz,
+            cell_lengths,
+            input_core_dims=core_dims,
+            output_core_dims=[["atom_id1", "atom_id2", "xyz_dim"]],
+            vectorize=True,
+            dask="parallelized",
+            dask_gufunc_kwargs=dict(
+                output_sizes={
+                    "atom_id1": atom_sel1.sizes["atom_id1"],
+                    "atom_id2": atom_sel2.sizes["atom_id2"],
+                    "xyz_dim": 3,
+                },
+            ),
+            output_dtypes=[
+                "float64",
+            ],
+        ).transpose("time", "atom_id1", "atom_id2", "xyz_dim")
+
+        if not vector:
+            distances = xr.apply_ufunc(
+                np.linalg.norm,
+                distances,
+                kwargs={"axis": -1},
+                input_core_dims=[["xyz_dim"]],
+                dask="parallelized",
+            )
+
+        return distances
