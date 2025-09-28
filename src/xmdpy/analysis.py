@@ -1,5 +1,7 @@
-from collections.abc import Iterable
+import warnings
 
+import dask
+import dask.array as da
 import numpy as np
 import numpy.typing as npt
 
@@ -11,8 +13,6 @@ def wrap(
 ) -> npt.NDArray[FloatLike]:
     if xyz.ndim > 2:
         cell_lengths = np.expand_dims(cell_lengths, axis=tuple(range(xyz.ndim - 2)))
-    # else:
-    #     cell_lengths = cell.lengths
 
     return xyz - cell_lengths * np.round(xyz / cell_lengths)
 
@@ -109,42 +109,95 @@ def is_symmetric(arr: np.ndarray, rtol: float = 1e-05, atol: float = 1e-08) -> b
     return np.allclose(arr, arr.T, rtol=rtol, atol=atol)
 
 
-def compute_radial_distribution(
-    distances: npt.ArrayLike,
-    volume: float | Iterable[float],
-    bins: int = 50,
-    r_range: tuple[int, int] = (0, 10),
-):
-    """Compute the radial distribution function for NVT or NPT simulations."""
-    distances = np.asarray(distances)
-    volume = np.asarray(volume)
-    n_frames = distances.shape[0]
-
-    if is_symmetric(distances[0]):
-        i, j = np.triu_indices(distances.shape[1], k=1)
-        distance_pairs = distances[:, i, j]
+def lazy_take(
+    values: npt.ArrayLike, indices: npt.ArrayLike, mode: str = "clip"
+) -> np.ndarray:
+    if dask.is_dask_collection(values) or dask.is_dask_collection(indices):
+        return da.map_blocks(
+            np.take,
+            values,
+            indices,
+            mode=mode,
+            dtype=values.dtype,  # type: ignore
+        )
     else:
-        distance_pairs = distances.reshape(n_frames, -1)
-        # (15000, 60, 240) -> (15000, n_pairs)
+        return np.take(values, indices, mode=mode)  # type: ignore
 
-    num_pairs = distance_pairs.shape[1]
-    r_edges = np.linspace(*r_range, num=bins + 1)
-    dr = r_edges[1] - r_edges[0]
 
-    if not volume.shape:
-        volume = np.broadcast_to(volume, shape=(n_frames, 1))
+def get_radial_weights(
+    distances: np.ndarray,
+    n_pairs: int,
+    n_frames: int,
+    volume: np.ndarray,
+    r_bins: np.ndarray,
+) -> np.ndarray:
+    """Compute weights for each distance value"""
+    dr = np.diff(r_bins)
 
-    # Compute weights of each distance
-    ref_number_density = num_pairs / volume
-    weights = 1 / (4 * np.pi * distance_pairs**2 * dr) / ref_number_density
+    # Overall number density per frame
+    ref_number_density = n_pairs / volume.reshape(n_frames, 1)
 
-    weighted_dist, bin_edges = np.histogram(
-        distance_pairs, bins=bins, range=r_range, weights=weights
+    ### For each frame, get closest shell volume for each distance value
+    bin_idx = np.digitize(distances, r_bins)
+
+    # If distances is a dask array, then lazy_take uses da.map_blocks(),
+    # otherwise, it uses np.take()
+    nearest_r_bin = lazy_take(r_bins, bin_idx, mode="clip")
+    nearest_dr = lazy_take(dr, bin_idx, mode="clip")
+    shell_volumes = 4 * np.pi * nearest_r_bin**2 * nearest_dr
+
+    return 1 / (shell_volumes * ref_number_density * n_frames)
+
+
+def construct_bins(bins: int | npt.ArrayLike, range: tuple[float, float]) -> np.ndarray:
+    if isinstance(bins, int):
+        bins = np.linspace(*range, num=bins + 1)
+    else:
+        bins = np.asarray(bins)
+
+        if np.any(bins < range[0]) or np.any(bins > range[1]):
+            warnings.warn(f"bins extend beyond provided range: {range}")
+    return bins
+
+
+def compute_radial_distribution(
+    distances: np.ndarray[tuple[int, int, int]],
+    n_pairs: int,
+    n_frames: int,
+    volume: float | npt.ArrayLike,
+    bins: int | npt.ArrayLike = 50,
+    r_range: tuple[float, float] = (0, 10),
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute the radial distribution function for NVT or NPT simulations."""
+    if not dask.is_dask_collection(distances):
+        distances = np.asarray(distances)
+
+    if not dask.is_dask_collection(volume):
+        volume = np.asarray(volume)
+
+    try:
+        pair_distances_per_frame = distances.reshape(n_frames, n_pairs)
+
+    except ValueError as e:
+        raise ValueError(
+            f"cannot reshape distances to ({n_frames=}, {n_pairs=}).\n{repr(e)}"
+        )
+
+    r_bins = construct_bins(bins, r_range)
+
+    weights = get_radial_weights(
+        pair_distances_per_frame,
+        n_pairs,
+        n_frames,
+        volume,  # type: ignore
+        r_bins,
     )
 
-    bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+    rdf, _ = np.histogram(
+        pair_distances_per_frame, bins=r_bins, range=r_range, weights=weights
+    )
 
-    # normalize distribution by number of frames
-    rdf = weighted_dist / n_frames
+    # Value of each bin center, has same length as rdf
+    r = (r_bins[1:] + r_bins[:-1]) / 2
 
-    return bin_centers, rdf
+    return r, rdf

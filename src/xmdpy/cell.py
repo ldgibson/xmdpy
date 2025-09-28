@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal, Self
+from typing import Literal, Self, cast
 
+import dask
+import dask.array as da
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
@@ -105,7 +107,7 @@ def compute_angle_degrees(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 class Cell:
     def __init__(
         self,
-        array: npt.ArrayLike,
+        array: float | Sequence[float] | CellArray,
         n_frames: int | None = None,
         shape_tol: float = 1e-6,
         dtype: SingleDType = np.float64,
@@ -118,7 +120,9 @@ class Cell:
                 array, n_frames=n_frames, dtype=dtype, copy=copy
             )
         else:
-            self._array = array
+            if not isinstance(array, np.ndarray) and not dask.is_dask_collection(array):
+                raise TypeError("only numpy or dask arrays can bypass normalization")
+            self._array: CellArray = cast(CellArray, array)
         self._shape_tol = shape_tol
 
     @classmethod
@@ -146,7 +150,16 @@ class Cell:
 
     @property
     def volume(self) -> np.ndarray[tuple[int,], np.dtype[np.float64]]:
-        return np.linalg.det(self._array)
+        if dask.is_dask_collection(self._array):
+            return da.map_blocks(
+                np.linalg.det,
+                self._array,
+                dtype=self._array.dtype,
+                chunks=(self._array.chunks[0],),  # type: ignore
+                drop_axis=[1, 2],
+            )
+        else:
+            return np.linalg.det(self._array)
 
     @property
     def lengths(self) -> np.ndarray[tuple[int, Literal[3]], np.dtype[np.float64]]:
