@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Literal
+from typing import Literal, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -110,9 +110,20 @@ class Cell:
         shape_tol: float = 1e-6,
         dtype: SingleDType = np.float64,
         copy: bool | None = None,
+        *,
+        _normalize: bool = True,
     ) -> None:
-        self._array = normalize_cell(array, n_frames=n_frames, dtype=dtype, copy=copy)
+        if _normalize:
+            self._array = normalize_cell(
+                array, n_frames=n_frames, dtype=dtype, copy=copy
+            )
+        else:
+            self._array = array
         self._shape_tol = shape_tol
+
+    @classmethod
+    def _from_normalized(cls, cell: CellArray, shape_tol: float = 1e-6) -> Self:
+        return cls(array=cell, shape_tol=shape_tol, _normalize=False)
 
     def __repr__(self) -> str:
         array_string = np.array2string(self._array, prefix="Cell(", suffix=")")
