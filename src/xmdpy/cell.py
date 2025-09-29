@@ -107,7 +107,7 @@ def compute_angle_degrees(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 class Cell:
     def __init__(
         self,
-        array: float | Sequence[float] | CellArray,
+        array: float | Sequence[float] | Sequence[Sequence[float]] | CellArray,
         n_frames: int | None = None,
         shape_tol: float = 1e-6,
         dtype: SingleDType = np.float64,

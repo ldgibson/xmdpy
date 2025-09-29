@@ -168,5 +168,12 @@ def test_is_symmetric_false_not_square() -> None:
 def test_compute_radial_distribution(distance_vectors) -> None:
     distances = np.linalg.norm(distance_vectors, axis=-1)
     volume = 10.0
-    r, rdf = compute_radial_distribution(distances, volume, bins=5, r_range=(0, 5))
+    r, rdf = compute_radial_distribution(
+        distances,
+        n_pairs=9,
+        n_frames=2,
+        volume=volume,
+        bins=5,
+        r_range=(0, 5),
+    )
     assert False

@@ -133,6 +133,7 @@ def get_radial_weights(
 ) -> np.ndarray:
     """Compute weights for each distance value"""
     dr = np.diff(r_bins)
+    r_mid = (r_bins[1:] + r_bins[:-1]) / 2
 
     # Overall number density per frame
     ref_number_density = n_pairs / volume.reshape(n_frames, 1)
@@ -142,8 +143,8 @@ def get_radial_weights(
 
     # If distances is a dask array, then lazy_take uses da.map_blocks(),
     # otherwise, it uses np.take()
-    nearest_r_bin = lazy_take(r_bins, bin_idx, mode="clip")
-    nearest_dr = lazy_take(dr, bin_idx, mode="clip")
+    nearest_r_bin = lazy_take(r_mid, bin_idx - 1, mode="clip")
+    nearest_dr = lazy_take(dr, bin_idx - 1, mode="clip")
     shell_volumes = 4 * np.pi * nearest_r_bin**2 * nearest_dr
 
     return 1 / (shell_volumes * ref_number_density * n_frames)
