@@ -1,4 +1,5 @@
 import warnings
+from typing import Any
 
 import dask
 import dask.array as da
@@ -8,9 +9,7 @@ import numpy.typing as npt
 from xmdpy.types import FloatLike, TrajArray
 
 
-def wrap(
-    xyz: npt.NDArray[FloatLike], cell_lengths: np.ndarray[tuple[int]]
-) -> npt.NDArray[FloatLike]:
+def wrap(xyz: npt.NDArray[Any], cell_lengths: npt.NDArray[Any]) -> npt.NDArray[Any]:
     if xyz.ndim > 2:
         cell_lengths = np.expand_dims(cell_lengths, axis=tuple(range(xyz.ndim - 2)))
 
@@ -55,7 +54,7 @@ def compute_distances(
 def compute_pairwise_distances_in_frame(
     xyz1: npt.NDArray[FloatLike],
     xyz2: npt.NDArray[FloatLike],
-) -> npt.NDArray:
+) -> np.ndarray[tuple[int, int, int], np.dtype[FloatLike]]:
     n_atoms1 = xyz1.shape[0]
     n_atoms2 = xyz2.shape[0]
 
@@ -71,7 +70,7 @@ def compute_pairwise_distance_vectors(
     xyz1: TrajArray,
     xyz2: TrajArray,
     cell: np.ndarray[tuple[int, int]] | None = None,
-) -> npt.NDArray:
+) -> np.ndarray[tuple[int, int, int, int], np.dtype[FloatLike]]:
     if xyz1.shape[0] != xyz2.shape[0]:
         raise ValueError("Number of frames in `xyz1` do not match `xyz2`.")
 
@@ -94,12 +93,14 @@ def compute_pairwise_distances(
     xyz1: TrajArray,
     xyz2: TrajArray,
     cell: np.ndarray[tuple[int, int]] | None = None,
-) -> npt.NDArray:
+) -> np.ndarray[tuple[int, int, int], np.dtype[FloatLike]]:
     distance_vectors = compute_pairwise_distance_vectors(xyz1, xyz2, cell)
     return np.linalg.norm(distance_vectors, axis=-1)
 
 
-def is_symmetric(arr: np.ndarray, rtol: float = 1e-05, atol: float = 1e-08) -> bool:
+def is_symmetric(
+    arr: npt.NDArray[Any], rtol: float = 1e-05, atol: float = 1e-08
+) -> bool:
     if arr.ndim > 2:
         return False
 
@@ -110,8 +111,8 @@ def is_symmetric(arr: np.ndarray, rtol: float = 1e-05, atol: float = 1e-08) -> b
 
 
 def lazy_take(
-    values: npt.ArrayLike, indices: npt.ArrayLike, mode: str = "clip"
-) -> np.ndarray:
+    values: npt.NDArray[FloatLike], indices: npt.NDArray[FloatLike], mode: str = "clip"
+) -> npt.NDArray[FloatLike]:
     if dask.is_dask_collection(values) or dask.is_dask_collection(indices):
         return da.map_blocks(
             np.take,
@@ -125,12 +126,12 @@ def lazy_take(
 
 
 def get_radial_weights(
-    distances: np.ndarray,
+    distances: np.ndarray[tuple[int, int], np.dtype[FloatLike]],
     n_pairs: int,
     n_frames: int,
-    volume: np.ndarray,
-    r_bins: np.ndarray,
-) -> np.ndarray:
+    volume: np.ndarray[tuple[int, ...], np.dtype[FloatLike]],
+    r_bins: np.ndarray[tuple[int], np.dtype[FloatLike]],
+) -> np.ndarray[tuple[int, int], np.dtype[FloatLike]]:
     """Compute weights for each distance value"""
     dr = np.diff(r_bins)
     r_mid = (r_bins[1:] + r_bins[:-1]) / 2
@@ -147,10 +148,12 @@ def get_radial_weights(
     nearest_dr = lazy_take(dr, bin_idx - 1, mode="clip")
     shell_volumes = 4 * np.pi * nearest_r_bin**2 * nearest_dr
 
-    return 1 / (shell_volumes * ref_number_density * n_frames)
+    return 1 / (shell_volumes * ref_number_density * float(n_frames))
 
 
-def construct_bins(bins: int | npt.ArrayLike, range: tuple[float, float]) -> np.ndarray:
+def construct_bins(
+    bins: int | npt.ArrayLike, range: tuple[float, float]
+) -> np.ndarray[tuple[int], np.dtype[FloatLike]]:
     if isinstance(bins, int):
         bins = np.linspace(*range, num=bins + 1)
     else:
@@ -168,7 +171,10 @@ def compute_radial_distribution(
     volume: float | npt.ArrayLike,
     bins: int | npt.ArrayLike = 50,
     r_range: tuple[float, float] = (0, 10),
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[
+    np.ndarray[tuple[int], np.dtype[FloatLike]],
+    np.ndarray[tuple[int], np.dtype[FloatLike]],
+]:
     """Compute the radial distribution function for NVT or NPT simulations."""
     if not dask.is_dask_collection(distances):
         distances = np.asarray(distances)

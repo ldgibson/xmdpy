@@ -12,6 +12,7 @@ import xarray as xr
 
 from xmdpy.types import (
     CellArray,
+    FloatLike,
     SingleDType,
 )
 
@@ -107,7 +108,12 @@ def compute_angle_degrees(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 class Cell:
     def __init__(
         self,
-        array: float | Sequence[float] | Sequence[Sequence[float]] | CellArray,
+        array: float
+        | FloatLike
+        | Sequence[float]
+        | Sequence[Sequence[float]]
+        | npt.ArrayLike
+        | np.ndarray[tuple[int, ...], np.dtype[FloatLike]],
         n_frames: int | None = None,
         shape_tol: float = 1e-6,
         dtype: SingleDType = np.float64,
