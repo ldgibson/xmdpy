@@ -8,7 +8,7 @@ from .xdatcar import (
     get_xdatcar_dims_and_details,
     read_xdatcar_frames,
 )
-from .xyz import get_xyz_dims_and_details, read_xyz_frames_atom_slice
+from .xyz import get_xyz_dims_and_details, read_xyz_frames
 
 type TrajectoryParser = Callable[
     [BinaryIO, tuple[IntArray, IntArray, IntArray], int, SingleDType],
@@ -26,7 +26,7 @@ type TrajectoryDetailsGetter = Callable[
 ]
 
 TRAJECTORY_PARSERS: dict[TrajectoryFormat, TrajectoryParser] = {
-    TrajectoryFormat.XYZ: read_xyz_frames_atom_slice,
+    TrajectoryFormat.XYZ: read_xyz_frames,
     TrajectoryFormat.XDATCAR: read_xdatcar_frames,
 }
 
