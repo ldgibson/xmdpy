@@ -54,6 +54,10 @@ def read_xdatcar_frames(
     direct: bool = True,
     selective_dynamics: bool = False,
 ) -> TrajArray:
+    for dim in indexes:
+        if not isinstance(dim, np.ndarray):
+            raise TypeError(f"invalid index type: {type(dim)}")
+
     offset = 1
 
     if selective_dynamics:
@@ -73,6 +77,7 @@ def read_xdatcar_frames(
     next(file_handle)
 
     frames, atoms, xyz_dim = indexes
+
     skipped_lines = set(range(offset)).union(
         {atom_id + offset for atom_id in range(total_atoms) if atom_id not in atoms}
     )
