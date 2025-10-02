@@ -2424,33 +2424,40 @@ dependencies = [
     { name = "xarray" },
 ]
 
-[package.dev-dependencies]
-dev = [
+[package.optional-dependencies]
+accel = [
+    { name = "scipy" },
+]
+benchmark = [
     { name = "ase" },
     { name = "jupyterlab" },
     { name = "mdanalysis" },
+    { name = "scalene" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "pyfakefs" },
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "scalene" },
-    { name = "scipy" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ase", marker = "extra == 'benchmark'", specifier = ">=3.26.0" },
     { name = "dask", specifier = ">=2025.7.0" },
+    { name = "jupyterlab", marker = "extra == 'benchmark'", specifier = ">=4.4.7" },
+    { name = "mdanalysis", marker = "extra == 'benchmark'", specifier = ">=2.9.0" },
     { name = "numpy", specifier = ">=2.3.2" },
+    { name = "scalene", marker = "extra == 'benchmark'", specifier = ">=1.5.54" },
+    { name = "scipy", marker = "extra == 'accel'", specifier = ">=1.16.1" },
     { name = "xarray", specifier = ">=2025.9.0" },
 ]
+provides-extras = ["accel", "benchmark"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "ase", specifier = ">=3.26.0" },
-    { name = "jupyterlab", specifier = ">=4.4.7" },
-    { name = "mdanalysis", specifier = ">=2.9.0" },
     { name = "pyfakefs", specifier = ">=5.9.3" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "scalene", specifier = ">=1.5.54" },
-    { name = "scipy", specifier = ">=1.16.1" },
 ]
