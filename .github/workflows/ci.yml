@@ -39,7 +39,7 @@ jobs:
       uses: jakebailey/pyright-action@v2
       with:
         version: 1.1.406
-        working-directory: src
+        extra-args: src/xmdpy
     - name: Test with pytest
       run: |
         pytest
