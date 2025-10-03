@@ -4,8 +4,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import Literal, Self, cast
 
-import dask
 import dask.array as da
+import dask.base
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
@@ -85,7 +85,7 @@ def normalize_cell(
 
         # Cell vectors per-frame
         case (3, (N, 3, 3)):
-            normalized_cell: CellArray = cell
+            normalized_cell = cell
 
         # All other shapes are invalid
         case (_, _):
@@ -126,9 +126,11 @@ class Cell:
                 array, n_frames=n_frames, dtype=dtype, copy=copy
             )
         else:
-            if not isinstance(array, np.ndarray) and not dask.is_dask_collection(array):
+            if not isinstance(array, np.ndarray) and not dask.base.is_dask_collection(
+                array
+            ):
                 raise TypeError("only numpy or dask arrays can bypass normalization")
-            self._array: CellArray = cast(CellArray, array)
+            self._array = cast(CellArray, array)
         self._shape_tol = shape_tol
 
     @classmethod
@@ -156,7 +158,7 @@ class Cell:
 
     @property
     def volume(self) -> np.ndarray[tuple[int,], np.dtype[np.float64]]:
-        if dask.is_dask_collection(self._array):
+        if dask.base.is_dask_collection(self._array):
             return da.map_blocks(
                 np.linalg.det,
                 self._array,

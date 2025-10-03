@@ -12,7 +12,7 @@ def frame_generator(
     lines_per_frame: int,
     skip_lines_in_frame: int | Container[int] = 0,
     usecol: slice[int | None] | None = None,
-) -> Generator[list[list[str]]]:
+) -> Generator[list[list[bytes]]]:
     if isinstance(skip_lines_in_frame, int):
         skip_lines_in_frame = set(range(skip_lines_in_frame))
 
@@ -42,7 +42,7 @@ def _parse_frame(
     frame_bytes: list[bytes],
     skip_lines_in_frame: Container[int],
     usecol: slice[int | None],
-) -> list[list[str]]:
+) -> list[list[bytes]]:
     buffer = []
 
     for i, line in enumerate(frame_bytes):

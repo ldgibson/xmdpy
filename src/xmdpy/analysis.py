@@ -1,8 +1,8 @@
 import warnings
 from typing import Any, cast
 
-import dask
 import dask.array as da
+import dask.base
 import numpy as np
 import numpy.typing as npt
 
@@ -98,10 +98,10 @@ def is_symmetric(
 def lazy_take(
     values: npt.NDArray[FloatLike], indices: npt.NDArray[FloatLike], mode: str = "clip"
 ) -> npt.NDArray[FloatLike]:
-    if dask.is_dask_collection(values):
+    if dask.base.is_dask_collection(values):
         raise TypeError("only the indices can be a dask array")
 
-    if dask.is_dask_collection(indices):
+    if dask.base.is_dask_collection(indices):
         return da.map_blocks(
             np.take,
             values,
@@ -164,16 +164,18 @@ def compute_radial_distribution(
     np.ndarray[tuple[int], np.dtype[FloatLike]],
 ]:
     """Compute the radial distribution function for NVT or NPT simulations."""
-    if not (dask.is_dask_collection(distances) and dask.is_dask_collection(volume)):
-        if any(dask.is_dask_collection(arg) for arg in [distances, volume]):
+    if not (
+        dask.base.is_dask_collection(distances) and dask.base.is_dask_collection(volume)
+    ):
+        if any(dask.base.is_dask_collection(arg) for arg in [distances, volume]):
             raise TypeError(
                 "to use dask backend, both distances and volume must be dask arrays"
             )
 
-    if not dask.is_dask_collection(distances):
+    if not dask.base.is_dask_collection(distances):
         distances = np.asarray(distances)
 
-    if not dask.is_dask_collection(volume):
+    if not dask.base.is_dask_collection(volume):
         volume = np.asarray(volume)
     else:
         # This removes type checking errors since pylance does not recognize

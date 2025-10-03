@@ -24,6 +24,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
 ]
 [project.optional-dependencies]
 accel = [
@@ -49,6 +50,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pyfakefs>=5.9.3",
+    "pyright>=1.1.406",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
 ]
