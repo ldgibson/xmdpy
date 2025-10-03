@@ -1,5 +1,6 @@
 # xmdpy
 [![CI](https://github.com/ldgibson/xmdpy/actions/workflows/ci.yml/badge.svg)](https://github.com/ldgibson/xmdpy/actions/workflows/ci.yml)
+[![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
