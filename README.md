@@ -17,11 +17,10 @@
 | Format | Description |
 | --- | --- |
 | `xyz` | Basic XYZ files; ignores information on comment line and anything beyond the 4th column |
-| `xdatcar` | VASP trajectory files; compatible with both Direct and Cartesian coordinates; not compatible with trajectories with variable cell parameters (e.g., NPT simulations) |
-| `netcdf` | Binary format used by AMBER, LAMMPS
+| `xdatcar` | VASP XDATCAR trajectory files; compatible with both Direct and Cartesian coordinates; not compatible with trajectories with variable cell parameters (e.g., NPT simulations) |
 
 > [!NOTE]
-> Other common formats to be implemented in the future include: `hdf5`, `lammpstrj`, `traj` (binary ASE format), `xtc`, `dcd`
+> Other common formats to be implemented in the future include: `extxyz`, `netcdf`, `hdf5`, `lammpstrj`, `traj` (binary ASE format), `xtc`, `dcd`
 
 ## Dependencies
 * [Python](https://python.org) 3.12+
