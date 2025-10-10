@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -74,7 +73,7 @@ def normalize_index_to_array(
 
 
 @dataclass
-class OnDiskTrajectory:
+class OnDiskTraj:
     filename: PathLike
     trajectory_format: TrajectoryFormat
     dtype: SingleDType = "float64"
@@ -179,57 +178,10 @@ class OnDiskCoordinates:
         return arr
 
 
-type TrajectoryParserFn = Callable[[tuple[OuterIndex, ...]], np.ndarray]
-
-
-@dataclass
-class OnDiskTrajectoryArray:
-    filename: PathLike
-    parser_fn: TrajectoryParserFn
-    shape: tuple[int, ...]
-    dtype: SingleDType = "float64"
-
-    def __getitem__(self, key: tuple[OuterIndex, ...]) -> np.ndarray:
-        indices = tuple(
-            normalize_index_to_array(index, self.shape[i])
-            for i, index in enumerate(key)
-        )  # type: ignore
-
-        arr = self.parser_fn(indices)
-
-        if any(isinstance(dim, int) for dim in key):
-            arr = np.squeeze(arr)
-
-        return arr
-
-
-class Trajectory(Protocol):
-    """Facade for the full trajectory dataset"""
-
-    filename: PathLike
-    dt: float
-
-    file_format: TrajectoryFormat = field(init=False)
-    n_frames: int = field(init=False)
-    atoms: list[str] = field(init=False)
-    shape: tuple[int, int, int] = field(init=False)
-
-    properties: list[str] = field(init=False)
-    trajectory: OnDiskTrajectory = field(init=False)
-
-    def get_data_vars(
-        self,
-    ) -> dict[str, tuple[tuple[str, ...], OnDiskTrajectoryArray]]: ...
-
-    def get_coordinates(self) -> dict[str, tuple[tuple[str, ...], xr.Variable]]: ...
-
-    def get_attributes(self) -> dict[str, Any]: ...
-
-
 class TrajectoryBackendArray(xarray.backends.BackendArray):
     def __init__(
         self,
-        array: OnDiskCoordinates | OnDiskTrajectory,
+        array: OnDiskCoordinates,
         shape: tuple[int, ...],
         dtype: SingleDType,
         lock: xarray.backends.locks.SerializableLock,
