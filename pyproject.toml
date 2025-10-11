@@ -1,7 +1,7 @@
 [project]
 name = "xmdpy"
 version = "0.1.0"
-description = "xmdpy: an Xarray interface for molecular dynamics trajectories"
+description = "xmdpy: an xarray interface for molecular dynamics trajectories"
 authors = [
     { name = "Luke Gibson", email = "ldgibson819@gmail.com" }
 ]
@@ -38,7 +38,7 @@ benchmark = [
 ]
 
 [project.entry-points."xarray.backends"]
-xmdpy = "xmdpy.backend:XMDPYBackendEntrypoint"
+xmdpy = "xmdpy.backends.entrypoint:XMDPYBackendEntrypoint"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
