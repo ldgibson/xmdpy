@@ -8,25 +8,28 @@ import numpy as np
 
 from xmdpy.backends.xyz import OnDiskXYZTrajectory
 from xmdpy.parsers.trajectory_formats import TrajectoryFormat
-from xmdpy.types import IntArray, PathLike, SingleDType
+from xmdpy.types import Int1DArray, PathLike, SingleDType, TrajNDArray
+
+# * The current limit on the dimensionality of an array's indexers is 4D with
+# * static typing. Currently, the first index should always refer to the time
+# * dimension of the trajectory. The atomic positions in a trajectory are
+# * indexed first by time, then by atom ID, and lastly by spatial dimension.
+
 
 type TrajectoryParserFn = (
-    Callable[[IntArray], np.ndarray]
-    | Callable[[IntArray, IntArray], np.ndarray]
-    | Callable[[IntArray, IntArray, IntArray], np.ndarray]
+    Callable[[Int1DArray], TrajNDArray]
+    | Callable[[Int1DArray, Int1DArray], TrajNDArray]
+    | Callable[[Int1DArray, Int1DArray, Int1DArray], TrajNDArray]
+    | Callable[[Int1DArray, Int1DArray, Int1DArray, Int1DArray], TrajNDArray]
 )
-type OuterIndex = (
-    int | np.integer | slice | np.ndarray[tuple[int], np.dtype[np.integer]]
-)
+type OuterIndex = int | np.integer | slice | Int1DArray
 
 ON_DISK_TRAJECTORY: dict[TrajectoryFormat, type[OnDiskTrajectory]] = {
     TrajectoryFormat.XYZ: OnDiskXYZTrajectory,
 }
 
 
-def normalize_index_to_array(
-    index: OuterIndex | None, upper_bound: int
-) -> np.ndarray[tuple[int], np.dtype[np.int64]]:
+def normalize_index_to_array(index: OuterIndex | None, upper_bound: int) -> Int1DArray:
     if isinstance(index, np.ndarray):
         if index.ndim > 1:
             raise IndexError("index cannot be multidimensional")
@@ -67,7 +70,7 @@ class OnDiskArray:
     shape: tuple[int, ...]
     dtype: SingleDType = "float64"
 
-    def __getitem__(self, key: tuple[OuterIndex, ...]) -> np.ndarray:
+    def __getitem__(self, key: tuple[OuterIndex, ...]) -> TrajNDArray:
         indices = tuple(
             normalize_index_to_array(index, self.shape[i])
             for i, index in enumerate(key)
@@ -90,6 +93,8 @@ class OnDiskTrajectory(Protocol):
 
     def get_data_vars(self) -> dict[str, tuple[tuple[str, ...], OnDiskArray]]: ...
 
-    def get_coords(self) -> dict[str, tuple[tuple[str, ...], np.ndarray]]: ...
+    def get_coords(
+        self,
+    ) -> dict[str, tuple[tuple[str, ...], TrajNDArray]]: ...
 
     def get_attrs(self) -> dict[str, Any]: ...
