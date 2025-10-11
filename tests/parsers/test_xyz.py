@@ -63,10 +63,10 @@ def test_read_xyz_frames_slice_frames_atoms_xyzdim(
     expected: np.ndarray,
 ) -> None:
     result = read_xyz_frames(
-        filename,
         frames,
         atoms,
         xyz_dim,
+        filename,
         total_atoms=3,
         dtype=np.float64,
     )
@@ -84,10 +84,10 @@ def test_read_xyz_frames_frames_not_array_raises_error(
 
     with pytest.raises(TypeError):
         _ = read_xyz_frames(
-            filename,
             frames,  # type: ignore
             atoms,
             xyz_dim,
+            filename,
             total_atoms=3,
             dtype=np.float64,
         )
@@ -103,10 +103,10 @@ def test_read_xyz_frames_atoms_not_array_raises_error(
 
     with pytest.raises(TypeError):
         _ = read_xyz_frames(
-            filename,
             frames,
             atoms,  # type: ignore
             xyz_dim,
+            filename,
             total_atoms=3,
             dtype=np.float64,
         )
@@ -122,10 +122,10 @@ def test_read_xyz_frames_xyzdim_not_array_raises_error(
 
     with pytest.raises(TypeError):
         _ = read_xyz_frames(
-            filename,
             frames,
             atoms,
             xyz_dim,  # type: ignore
+            filename,
             total_atoms=3,
             dtype=np.float64,
         )
