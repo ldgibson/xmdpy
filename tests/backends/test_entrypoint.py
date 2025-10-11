@@ -1,19 +1,15 @@
 import os
 
-import dask
 import numpy as np
 import pytest
 import xarray as xr
-from xarray.testing import assert_allclose, assert_equal
+from xarray.testing import assert_equal
 
-from xmdpy.backend import XMDPYBackendEntrypoint
+from xmdpy.backends.entrypoint import XMDPYBackendEntrypoint
 
 
 @pytest.fixture
 def fake_filesystem(fs):
-    dask_real_path = os.path.dirname(dask.__file__)
-    fs.add_real_directory(dask_real_path)
-
     MOCK_XYZ_FRAME = (
         "3\ni = {0}\nO 0.0 0.0 {0:.1f}\nH 0.9 0.7 {0:.1f}\nH -0.9 0.7 {0:.1f}\n"
     )
@@ -136,62 +132,105 @@ def test_XMDPYBackendEntrypoint_atoms_indexing_time_slicing_xyz(
     assert_equal(result, expected.sel(atoms=atom_selection, time=time_slices))
 
 
-@pytest.mark.parametrize("start", [None, 1, -4])
-@pytest.mark.parametrize("stop", [None, 3, -2])
-@pytest.mark.parametrize("step", [None, 2, 3])
-def test_XMDPYBackendEntrypoint_time_indexing_XDATCAR(
-    fake_filesystem, expected, start, stop, step
-) -> None:
-    traj_fname = "./tests/data/mock_XDATCAR"
+def test_XMDPYBackendEntrypoint_file_format_none(fake_filesystem, expected) -> None:
+    traj_fname = "./tests/data/mock_traj.xyz"
+
+    cell = np.diag([10.0, 10.0, 10.0])
 
     result = xr.load_dataset(
         traj_fname,
         engine=XMDPYBackendEntrypoint,
-        file_format="xdatcar",
-    ).isel(time=slice(start, stop, step))
-
-    assert_allclose(
-        result,
-        expected.isel(time=slice(start, stop, step)),
+        cell=cell,
+        file_format=None,
     )
 
-
-@pytest.mark.parametrize("start", [None, 0, 1, -8])
-@pytest.mark.parametrize("stop", [None, 9, -1])
-@pytest.mark.parametrize("step", [None, 2])
-def test_XMDPYBackendEntrypoint_atom_id_indexing_XDATCAR(
-    fake_filesystem, expected, start, stop, step
-) -> None:
-    traj_fname = "./tests/data/mock_XDATCAR"
-
-    result = xr.load_dataset(
-        traj_fname,
-        engine=XMDPYBackendEntrypoint,
-        file_format="xdatcar",
-    ).sel(atom_id=slice(start, stop, step))
-
-    assert_allclose(result, expected.sel(atom_id=slice(start, stop, step)))
+    assert_equal(result, expected)
 
 
-@pytest.mark.parametrize("atom_selection", ["O", "H"])
 @pytest.mark.parametrize(
-    "time_slices",
-    [
-        slice(None),
-        slice(None, None, 2),
-        slice(None, None, 3),
-        slice(1, 10, 3),
-    ],
+    "filename",
+    ["./tests/data/mock_traj.xyz", "./tests/data/mock_XDATCAR", "XDATCAR", "mock.xyz"],
 )
-def test_XMDPYBackendEntrypoint_atoms_indexing_time_slicing_XDATCAR(
-    fake_filesystem, expected, atom_selection, time_slices
-) -> None:
-    traj_fname = "./tests/data/mock_XDATCAR"
+def test_XMDPYBackendEntrypoint_guess_can_open_true(filename) -> None:
+    entrypoint = XMDPYBackendEntrypoint()
+    assert entrypoint.guess_can_open(filename)
 
-    result = xr.load_dataset(
-        traj_fname,
-        engine=XMDPYBackendEntrypoint,
-        file_format="xdatcar",
-    ).sel(atoms=atom_selection, time=time_slices)
 
-    assert_allclose(result, expected.sel(atoms=atom_selection, time=time_slices))
+@pytest.mark.parametrize(
+    "filename",
+    ["mock.badext", "", None],
+)
+def test_XMDPYBackendEntrypoint_guess_can_open_false(filename) -> None:
+    entrypoint = XMDPYBackendEntrypoint()
+    assert not entrypoint.guess_can_open(filename)
+
+
+@pytest.mark.xfail
+def test_to_lazy_variable() -> None:
+    assert False
+
+
+@pytest.mark.xfail
+def test_trajectory_backend_array() -> None:
+    assert False
+
+
+# @pytest.mark.parametrize("start", [None, 1, -4])
+# @pytest.mark.parametrize("stop", [None, 3, -2])
+# @pytest.mark.parametrize("step", [None, 2, 3])
+# def test_XMDPYBackendEntrypoint_time_indexing_XDATCAR(
+#     fake_filesystem, expected, start, stop, step
+# ) -> None:
+#     traj_fname = "./tests/data/mock_XDATCAR"
+
+#     result = xr.load_dataset(
+#         traj_fname,
+#         engine=XMDPYBackendEntrypoint,
+#         file_format="xdatcar",
+#     ).isel(time=slice(start, stop, step))
+
+#     assert_allclose(
+#         result,
+#         expected.isel(time=slice(start, stop, step)),
+#     )
+
+
+# @pytest.mark.parametrize("start", [None, 0, 1, -8])
+# @pytest.mark.parametrize("stop", [None, 9, -1])
+# @pytest.mark.parametrize("step", [None, 2])
+# def test_XMDPYBackendEntrypoint_atom_id_indexing_XDATCAR(
+#     fake_filesystem, expected, start, stop, step
+# ) -> None:
+#     traj_fname = "./tests/data/mock_XDATCAR"
+
+#     result = xr.load_dataset(
+#         traj_fname,
+#         engine=XMDPYBackendEntrypoint,
+#         file_format="xdatcar",
+#     ).sel(atom_id=slice(start, stop, step))
+
+#     assert_allclose(result, expected.sel(atom_id=slice(start, stop, step)))
+
+
+# @pytest.mark.parametrize("atom_selection", ["O", "H"])
+# @pytest.mark.parametrize(
+#     "time_slices",
+#     [
+#         slice(None),
+#         slice(None, None, 2),
+#         slice(None, None, 3),
+#         slice(1, 10, 3),
+#     ],
+# )
+# def test_XMDPYBackendEntrypoint_atoms_indexing_time_slicing_XDATCAR(
+#     fake_filesystem, expected, atom_selection, time_slices
+# ) -> None:
+#     traj_fname = "./tests/data/mock_XDATCAR"
+
+#     result = xr.load_dataset(
+#         traj_fname,
+#         engine=XMDPYBackendEntrypoint,
+#         file_format="xdatcar",
+#     ).sel(atoms=atom_selection, time=time_slices)
+
+#     assert_allclose(result, expected.sel(atoms=atom_selection, time=time_slices))

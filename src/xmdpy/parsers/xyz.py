@@ -28,10 +28,10 @@ def get_xyz_dims_and_details(
 
 
 def read_xyz_frames(
-    filename: PathLike,
     frames: Int1DArray,
     atoms: Int1DArray,
     xyz_dim: Int1DArray,
+    filename: PathLike,
     total_atoms: int,
     dtype: SingleDType = "float64",
 ) -> TrajArray:
