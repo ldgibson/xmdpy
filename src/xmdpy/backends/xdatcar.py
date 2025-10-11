@@ -5,7 +5,7 @@ import numpy as np
 
 from xmdpy.types import CellArray3x3, Int1DArray, PathLike, SingleDType, TrajArray
 
-from .base_parser import count_lines, frame_generator
+from .parsing_utils import count_lines, frame_generator
 
 
 def get_xdatcar_dims_and_details(

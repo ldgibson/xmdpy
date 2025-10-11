@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 
-from xmdpy.parsers.xyz import get_xyz_dims_and_details, read_xyz_frames
+from xmdpy.backends.xyz import get_xyz_dims_and_details, read_xyz_frames
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from xmdpy.parsers.trajectory_formats import (
+from xmdpy.backends.trajectory_formats import (
     InvalidTrajectoryFormatError,
     TrajectoryFormat,
     get_valid_trajectory_format,
