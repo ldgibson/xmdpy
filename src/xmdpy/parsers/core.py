@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import BinaryIO
 
-from xmdpy.types import CellArray3x3, IntArray, PathLike, SingleDType, TrajArray
+from xmdpy.types import CellArray3x3, Int1DArray, PathLike, SingleDType, TrajArray
 
 from .trajectory_formats import TrajectoryFormat
 from .xdatcar import (
@@ -11,7 +11,7 @@ from .xdatcar import (
 from .xyz import get_xyz_dims_and_details, read_xyz_frames
 
 type TrajectoryParser = Callable[
-    [BinaryIO, tuple[IntArray, IntArray, IntArray], int, SingleDType],
+    [BinaryIO, tuple[Int1DArray, Int1DArray, Int1DArray], int, SingleDType],
     TrajArray,
 ]
 

@@ -3,7 +3,7 @@ from typing import BinaryIO
 
 import numpy as np
 
-from xmdpy.types import CellArray3x3, IntArray, PathLike, SingleDType, TrajArray
+from xmdpy.types import CellArray3x3, Int1DArray, PathLike, SingleDType, TrajArray
 
 from .base_parser import count_lines, frame_generator
 
@@ -47,7 +47,7 @@ def get_xdatcar_dims_and_details(
 
 def read_xdatcar_frames(
     file_handle: BinaryIO,
-    indexes: tuple[IntArray, IntArray, IntArray],
+    indexes: tuple[Int1DArray, Int1DArray, Int1DArray],
     total_atoms: int,
     dtype: SingleDType = np.float64,
     *,

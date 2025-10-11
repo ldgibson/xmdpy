@@ -1,6 +1,6 @@
 import numpy as np
 
-from xmdpy.types import IntArray, PathLike, SingleDType, TrajArray
+from xmdpy.types import Int1DArray, PathLike, SingleDType, TrajArray
 
 from .base_parser import count_lines, frame_generator
 
@@ -24,15 +24,14 @@ def get_xyz_dims_and_details(
 
     n_frames = int(n_lines / (n_atoms + 2))
 
-    # xyz format does not read cell information
     return n_frames, atoms
 
 
 def read_xyz_frames(
     filename: PathLike,
-    frames: IntArray,
-    atoms: IntArray,
-    xyz_dim: IntArray,
+    frames: Int1DArray,
+    atoms: Int1DArray,
+    xyz_dim: Int1DArray,
     total_atoms: int,
     dtype: SingleDType = "float64",
 ) -> TrajArray:

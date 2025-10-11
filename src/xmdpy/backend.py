@@ -24,7 +24,7 @@ from xmdpy.types import (
     CellArray,
     CellArray3x3,
     FloatLike,
-    IntArray,
+    Int1DArray,
     PathLike,
     SingleDType,
     TrajArray,
@@ -109,7 +109,7 @@ class OnDiskTraj:
         ]
 
     def __getitem__(self, key: tuple[OuterIndex, OuterIndex, OuterIndex]) -> TrajArray:
-        indices: tuple[IntArray, IntArray, IntArray] = tuple(
+        indices: tuple[Int1DArray, Int1DArray, Int1DArray] = tuple(
             normalize_index_to_array(index, self.shape[i])
             for i, index in enumerate(key)
         )  # type: ignore
@@ -164,7 +164,7 @@ class OnDiskCoordinates:
         self.parser_fn = TRAJECTORY_PARSERS[self.trajectory_format]
 
     def __getitem__(self, key: tuple[OuterIndex, OuterIndex, OuterIndex]) -> TrajArray:
-        indices: tuple[IntArray, IntArray, IntArray] = tuple(
+        indices: tuple[Int1DArray, Int1DArray, Int1DArray] = tuple(
             normalize_index_to_array(index, self.shape[i])
             for i, index in enumerate(key)
         )  # type: ignore
