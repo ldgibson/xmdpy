@@ -14,7 +14,7 @@ from xmdpy.parsers.trajectory_formats import (
     TrajectoryFormat,
     get_valid_trajectory_format,
 )
-from xmdpy.types import FloatLike, SingleDType
+from xmdpy.types import FloatLike, SingleDType, TrajNDArray
 
 from .core import ON_DISK_TRAJECTORY, OnDiskArray, OuterIndex
 from .names import Coord
@@ -52,9 +52,7 @@ class TrajectoryBackendArray(xarray.backends.BackendArray):
             self._raw_indexing_method,
         )
 
-    def _raw_indexing_method(
-        self, key: tuple[OuterIndex, OuterIndex, OuterIndex]
-    ) -> np.ndarray[tuple[int, ...], np.dtype[FloatLike]]:
+    def _raw_indexing_method(self, key: tuple[OuterIndex, ...]) -> TrajNDArray:
         with self.lock:
             return self.array[key]
 
