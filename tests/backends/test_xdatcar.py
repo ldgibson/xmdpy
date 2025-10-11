@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from xmdpy.parsers.xdatcar import get_xdatcar_dims_and_details, read_xdatcar_frames
+from xmdpy.backends.xdatcar import get_xdatcar_dims_and_details, read_xdatcar_frames
 
 
 @pytest.fixture

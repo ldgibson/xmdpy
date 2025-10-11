@@ -7,16 +7,16 @@ import xarray.backends
 import xarray.backends.locks
 from xarray.core import indexing
 
-from xmdpy.parsers.trajectory_formats import (
+from xmdpy.types import FloatLike, SingleDType, TrajNDArray
+
+from .names import Coord
+from .on_disk_array import OnDiskArray, OuterIndex
+from .on_disk_trajectory import ON_DISK_TRAJECTORY
+from .trajectory_formats import (
     TrajectoryFormat,
     get_valid_trajectory_format,
     guess_trajectory_format_str,
 )
-from xmdpy.types import FloatLike, SingleDType, TrajNDArray
-
-from .core import ON_DISK_TRAJECTORY
-from .names import Coord
-from .on_disk_trajectory import OnDiskArray, OuterIndex
 
 LOCK = xarray.backends.locks.SerializableLock()
 

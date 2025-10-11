@@ -4,12 +4,70 @@ from typing import Any
 
 import numpy as np
 
-from xmdpy.parsers.trajectory_formats import TrajectoryFormat
-from xmdpy.parsers.xyz import get_xyz_dims_and_details, read_xyz_frames
-from xmdpy.types import PathLike, SingleDType, TrajNDArray
+from xmdpy.types import Int1DArray, PathLike, SingleDType, TrajArray, TrajNDArray
 
 from .names import DATA_VAR_DIMS, DEFAULT_COORDS, Coord, DataVar
-from .on_disk_trajectory import OnDiskArray
+from .on_disk_array import OnDiskArray
+from .parsing_utils import count_lines, frame_generator
+from .trajectory_formats import TrajectoryFormat
+
+
+def get_xyz_dims_and_details(
+    filename: PathLike,
+) -> tuple[int, list[str]]:
+    n_lines = count_lines(filename)
+
+    atoms = []
+
+    with open(filename, "rb") as f:
+        n_atoms = int(f.readline().strip())
+
+        _ = f.readline()
+
+        for _ in range(n_atoms):
+            line = f.readline()
+            fields = line.split()
+            atoms.append(fields[0].decode())
+
+    n_frames = int(n_lines / (n_atoms + 2))
+
+    return n_frames, atoms
+
+
+def read_xyz_frames(
+    frames: Int1DArray,
+    atoms: Int1DArray,
+    xyz_dim: Int1DArray,
+    filename: PathLike,
+    total_atoms: int,
+    dtype: SingleDType = "float64",
+) -> TrajArray:
+    offset = 2
+    lines_per_frame = total_atoms + offset
+
+    for dim in (frames, atoms, xyz_dim):
+        if not isinstance(dim, np.ndarray):
+            raise TypeError(f"invalid index type: {type(dim)}")
+
+    skipped_lines = set(range(offset)).union(
+        {atom_id + offset for atom_id in range(total_atoms) if atom_id not in atoms}
+    )
+
+    positions = np.zeros((len(frames), len(atoms), 3), dtype=dtype)
+
+    with open(filename, "rb") as file_handle:
+        for i, coords in enumerate(
+            frame_generator(
+                file_handle,
+                frames,
+                lines_per_frame,
+                skip_lines_in_frame=skipped_lines,
+                usecol=slice(1, 4),
+            )
+        ):
+            positions[i] = coords
+
+    return positions[:, :, xyz_dim]
 
 
 @dataclass

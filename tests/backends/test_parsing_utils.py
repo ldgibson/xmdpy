@@ -3,7 +3,7 @@ from math import ceil
 
 import pytest
 
-from xmdpy.parsers.base_parser import (
+from xmdpy.backends.parsing_utils import (
     _make_gen,
     _parse_frame,
     count_lines,
