@@ -10,8 +10,8 @@ from xarray.core import indexing
 from xmdpy.types import FloatLike, SingleDType, TrajNDArray
 
 from .names import Coord
-from .on_disk_array import OnDiskArray, OuterIndex
-from .on_disk_trajectory import ON_DISK_TRAJECTORY
+from .on_disk_array import OuterIndex
+from .on_disk_trajectory import ON_DISK_TRAJECTORY, IndexableShapedArray
 from .trajectory_formats import (
     TrajectoryFormat,
     get_valid_trajectory_format,
@@ -21,7 +21,7 @@ from .trajectory_formats import (
 LOCK = xarray.backends.locks.SerializableLock()
 
 
-def to_lazy_variable(dims: tuple[str, ...], arr: OnDiskArray) -> xr.Variable:
+def to_lazy_variable(dims: tuple[str, ...], arr: IndexableShapedArray) -> xr.Variable:
     return xr.Variable(
         dims,
         indexing.LazilyIndexedArray(
@@ -33,7 +33,7 @@ def to_lazy_variable(dims: tuple[str, ...], arr: OnDiskArray) -> xr.Variable:
 class TrajectoryBackendArray(xarray.backends.BackendArray):
     def __init__(
         self,
-        array: OnDiskArray,
+        array: IndexableShapedArray,
         shape: tuple[int, ...],
         dtype: SingleDType,
         lock: xarray.backends.locks.SerializableLock,
@@ -89,13 +89,12 @@ class XMDPYBackendEntrypoint(xarray.backends.BackendEntrypoint):
         traj = ON_DISK_TRAJECTORY[trajectory_format](filename_or_obj, dt, dtype=dtype)
 
         data_vars = {
-            key: to_lazy_variable(dims, on_disk_array)
-            for key, (dims, on_disk_array) in traj.get_data_vars().items()
+            name: to_lazy_variable(dims, on_disk_array)
+            for name, dims, on_disk_array in traj.get_data_vars()
         }
 
         coords = {
-            key: xr.Variable(dims, coord)
-            for key, (dims, coord) in traj.get_coords().items()
+            name: xr.Variable(dims, coord) for name, dims, coord in traj.get_coords()
         }
 
         attrs = traj.get_attrs()
