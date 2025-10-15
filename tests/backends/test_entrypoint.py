@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 import xarray as xr
-from xarray.testing import assert_equal
+from xarray.testing import assert_allclose, assert_equal
 
 from xmdpy.backends.entrypoint import XMDPYBackendEntrypoint
 
@@ -175,24 +175,24 @@ def test_trajectory_backend_array() -> None:
     assert False
 
 
-# @pytest.mark.parametrize("start", [None, 1, -4])
-# @pytest.mark.parametrize("stop", [None, 3, -2])
-# @pytest.mark.parametrize("step", [None, 2, 3])
-# def test_XMDPYBackendEntrypoint_time_indexing_XDATCAR(
-#     fake_filesystem, expected, start, stop, step
-# ) -> None:
-#     traj_fname = "./tests/data/mock_XDATCAR"
+@pytest.mark.parametrize("start", [None, 1, -4])
+@pytest.mark.parametrize("stop", [None, 3, -2])
+@pytest.mark.parametrize("step", [None, 2, 3])
+def test_XMDPYBackendEntrypoint_time_indexing_XDATCAR(
+    fake_filesystem, expected, start, stop, step
+) -> None:
+    traj_fname = "./tests/data/mock_XDATCAR"
 
-#     result = xr.load_dataset(
-#         traj_fname,
-#         engine=XMDPYBackendEntrypoint,
-#         file_format="xdatcar",
-#     ).isel(time=slice(start, stop, step))
+    result = xr.load_dataset(
+        traj_fname,
+        engine=XMDPYBackendEntrypoint,
+        file_format="xdatcar",
+    ).isel(time=slice(start, stop, step))
 
-#     assert_allclose(
-#         result,
-#         expected.isel(time=slice(start, stop, step)),
-#     )
+    assert_allclose(
+        result,
+        expected.isel(time=slice(start, stop, step)),
+    )
 
 
 # @pytest.mark.parametrize("start", [None, 0, 1, -8])

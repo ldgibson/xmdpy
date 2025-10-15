@@ -94,16 +94,16 @@ class OnDiskXYZTrajectory:
         )
         return OnDiskArray(parser_fn, (self.n_frames, self.n_atoms, 3))
 
-    def get_data_vars(self) -> dict[str, tuple[tuple[str, ...], OnDiskArray]]:
-        return {DataVar.POSITIONS: (DATA_VAR_DIMS[DataVar.POSITIONS], self.positions)}
+    def get_data_vars(self) -> tuple[tuple[str, tuple[str, ...], OnDiskArray], ...]:
+        return ((DataVar.POSITIONS, DATA_VAR_DIMS[DataVar.POSITIONS], self.positions),)
 
-    def get_coords(self) -> dict[str, tuple[tuple[str, ...], TrajNDArray]]:
-        return {
-            Coord.TIME: (DATA_VAR_DIMS[Coord.TIME], np.arange(self.n_frames) * self.dt),
-            Coord.ATOMID: (DATA_VAR_DIMS[Coord.ATOMID], np.arange(self.n_atoms)),
-            Coord.ATOM: (DATA_VAR_DIMS[Coord.ATOM], np.asarray(self.atoms)),
-            Coord.SPACE: (DATA_VAR_DIMS[Coord.SPACE], DEFAULT_COORDS[Coord.SPACE]),
-        }
+    def get_coords(self) -> tuple[tuple[str, tuple[str, ...], TrajNDArray], ...]:
+        return (
+            (Coord.TIME, DATA_VAR_DIMS[Coord.TIME], np.arange(self.n_frames) * self.dt),
+            (Coord.ATOMID, DATA_VAR_DIMS[Coord.ATOMID], np.arange(self.n_atoms)),
+            (Coord.ATOM, DATA_VAR_DIMS[Coord.ATOM], np.asarray(self.atoms)),
+            (Coord.SPACE, DATA_VAR_DIMS[Coord.SPACE], DEFAULT_COORDS[Coord.SPACE]),
+        )
 
     def get_attrs(self) -> dict[str, Any]:
         return {

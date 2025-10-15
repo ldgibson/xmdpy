@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -59,15 +58,23 @@ def normalize_index_to_array(index: OuterIndex | None, upper_bound: int) -> Int1
     return np.arange(start, stop, step, dtype=np.int64)
 
 
-@dataclass
 class OnDiskArray:
     """Represents general arrays within a trajectory"""
 
-    parser_fn: TrajectoryParserFn
-    shape: tuple[int, ...]
-    dtype: SingleDType = "float64"
+    def __init__(
+        self,
+        parser_fn: TrajectoryParserFn,
+        shape: tuple[int, ...],
+        dtype: SingleDType = "float64",
+    ) -> None:
+        self.parser_fn = parser_fn
+        self.shape = shape
+        self.dtype = np.dtype(dtype)
 
-    def __getitem__(self, key: tuple[OuterIndex, ...]) -> TrajNDArray:
+    def __getitem__(self, key: OuterIndex | tuple[OuterIndex, ...], /) -> TrajNDArray:
+        if not isinstance(key, tuple):
+            key = (key,)
+
         indices = tuple(
             normalize_index_to_array(index, self.shape[i])
             for i, index in enumerate(key)
