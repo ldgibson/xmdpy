@@ -6,7 +6,7 @@ import xarray as xr
 from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
 
-from xmdpy.analysis import compute_distance_vectors
+from xmdpy.analysis import compute_distance_vectors, compute_radial_distribution
 from xmdpy.cell import Cell
 
 
@@ -153,6 +153,11 @@ class TrajectoryAccessor:
         CellNotDefinedError
             If using `mic=True` without the Dataset containing a cell variable
 
+        Warns
+        -----
+        RuntimeWarning
+            If the cell is not orthorhombic since `mic=True` is currently only
+            suitable for orthorhombic cells
         """
         core_dims = [
             ["atom_id1", "xyz_dim"],
@@ -162,6 +167,14 @@ class TrajectoryAccessor:
         if mic:
             if "cell" not in self._obj:
                 raise CellNotDefinedError()
+
+            if not self.cell.is_orthorhombic():
+                raise RuntimeWarning(
+                    "Minimum image convention only implemented for orthorhombic "
+                    "systems. Be sure that the cell is sufficiently close to "
+                    "orthorhombic."
+                )
+
             cell_lengths = self.cell.lengths
             core_dims.append(["xyz_dim"])
         else:
@@ -206,3 +219,43 @@ class TrajectoryAccessor:
             )
 
         return distances
+
+    def compute_rdf(
+        self,
+        atoms1: str | int | Sequence[int],
+        atoms2: str | int | Sequence[int] | None = None,
+        bins: int | npt.ArrayLike = 50,
+        r_range: tuple[float, float] = (0, 10),
+    ) -> xr.DataArray:
+        """Compute radial distribution function for provided selections.
+
+        Parameters
+        ----------
+        atoms1 : str | Sequence[int]
+            Selection of atoms - can be either a `str`, where all atoms
+            matching that name are selected; or one or more `atom_id`s.
+            If `atoms2=None`, then all unique pairs from `atoms1` selection
+            are used.
+        atoms2 : str | Sequence[int] | None, optional
+            Second selection of atoms. Follows the same rules as `atoms1`,
+            by default None.
+        bins : int | npt.ArrayLike, optional
+            Number of bins, by default 50; exact bin spacing can also be
+            provided as an array
+        r_range : tuple[float, float], optional
+            Minimum and maximum distances, by default (0, 10)
+
+        Returns
+        -------
+        xr.DataArray
+            Radial distribution function with distances as coordinate
+        """
+        distances = self.get_distances(atoms1, atoms2)
+
+        n_pairs = len(distances.atoms1) * len(distances.atoms2)
+
+        r, rdf = compute_radial_distribution(
+            distances.data, self.cell.volume, n_pairs, distances.time, bins, r_range
+        )
+
+        return xr.DataArray(data=rdf, coords={"r": ("distance", r)}, name="rdf")
