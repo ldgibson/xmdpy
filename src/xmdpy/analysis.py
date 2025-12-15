@@ -1,4 +1,6 @@
 import warnings
+from collections.abc import Sequence
+from itertools import pairwise
 from typing import Any, cast
 
 import dask.array as da
@@ -137,6 +139,71 @@ def get_radial_weights(
     shell_volumes = 4 * np.pi * nearest_r_bin**2 * nearest_dr
 
     return 1 / (shell_volumes * ref_number_density * n_frames)
+
+
+def strictly_increasing(x: Sequence[float]) -> bool:
+    return all(i <= j for i, j in pairwise(x))
+
+
+def strictly_decreasing(x: Sequence[float]) -> bool:
+    return all(i >= j for i, j in pairwise(x))
+
+
+def is_monotonic(x: Sequence[float]) -> bool:
+    return strictly_increasing(x) or strictly_decreasing(x)
+
+
+def construct_custom_bins(
+    bounds: Sequence[float],
+    spacing: Sequence[float],
+) -> np.ndarray:
+    """Generates bin edges with custom spacing
+
+    Parameters
+    ----------
+    bounds : Sequence[float]
+        Consecutive boundaries for bin arrays
+    spacing : Sequence[float] | None
+        Controls density of bins for each span between neighboring bounds,
+        number of values must be one less than number of bounds,
+        i.e., len(spacing) == len(bounds) - 1
+
+    Returns
+    -------
+    np.ndarray
+        Consecutive bin edges constructed from bin arrays with custom spacing
+
+    Raises
+    ------
+    ValueError
+        If bounds are not monotonic
+    ValueError
+        If invalid number of spacing values are provided
+    """
+    if not is_monotonic(bounds):
+        raise ValueError("bounds must be monotonically increasing or decreasing")
+
+    if spacing is None:
+        spacing = []
+
+    num_spacings = len(spacing)
+    num_bounds = len(bounds)
+
+    if num_spacings != num_bounds - 1:
+        raise ValueError(
+            f"Invalid number of spacing values ({num_spacings}) provided for given "
+            "bounds. Number of spacing values must be one less than number of bounds."
+        )
+
+    bin_regions = []
+
+    for (x0, x1), dx in zip(pairwise(bounds), spacing):
+        bin_regions.append(np.arange(x0, x1, dx))
+
+    if bin_regions[-1][-1] != bounds[-1]:
+        bin_regions.append(np.array([bounds[-1]]))
+
+    return np.concatenate(bin_regions)
 
 
 def construct_bins(
