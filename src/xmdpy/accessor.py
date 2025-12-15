@@ -1,3 +1,4 @@
+import itertools
 from typing import Sequence
 
 import numpy as np
@@ -253,9 +254,27 @@ class TrajectoryAccessor:
         distances = self.get_distances(atoms1, atoms2)
 
         n_pairs = len(distances.atoms1) * len(distances.atoms2)
+        atom_pairs = list(
+            itertools.product(set(distances.atoms1.data), set(distances.atoms1.data))
+        )
+        if len(atom_pairs) == 1:
+            atom_pairs = atom_pairs[0]
+
+        attrs = {
+            "atom_pairs": atom_pairs,
+            "atoms1": distances.atoms1.drop("atoms1"),
+            "atoms2": distances.atoms2.drop("atoms2"),
+        }
 
         r, rdf = compute_radial_distribution(
-            distances.data, self.cell.volume, n_pairs, distances.time, bins, r_range
+            distances.data,
+            self.cell.volume,
+            n_pairs,
+            len(distances.time),
+            bins,
+            r_range,
         )
 
-        return xr.DataArray(data=rdf, coords={"r": ("distance", r)}, name="rdf")
+        return xr.DataArray(
+            data=rdf, coords={"r": r}, dims="r", name="rdf", attrs=attrs
+        )
