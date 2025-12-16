@@ -120,7 +120,7 @@ class TrajectoryAccessor:
 
     def get_distances(
         self,
-        atoms1: str | int | Sequence[int],
+        atoms1: str | int | Sequence[int] | None = None,
         atoms2: str | int | Sequence[int] | None = None,
         mic: bool = True,
         vector: bool = False,
@@ -129,11 +129,11 @@ class TrajectoryAccessor:
 
         Parameters
         ----------
-        atoms1 : str | Sequence[int]
+        atoms1 : str | Sequence[int] | None, optional
             Selection of atoms - can be either a `str`, where all atoms
             matching that name are selected; or one or more `atom_id`s.
-            If `atoms2=None`, then all unique pairs from `atoms1` selection
-            are used.
+            If `atoms1=None`, then all pairs are used. If `atoms2=None`, then
+            all unique pairs from `atoms1` selection are used, by default None.
         atoms2 : str | Sequence[int] | None, optional
             Second selection of atoms. Follows the same rules as `atoms1`,
             by default None.
@@ -181,6 +181,9 @@ class TrajectoryAccessor:
         else:
             cell_lengths = None
             core_dims.append([])
+
+        if atoms1 is None:
+            atoms1 = list(self._obj.atom_id.data)
 
         if atoms2 is None:
             atoms2 = atoms1
