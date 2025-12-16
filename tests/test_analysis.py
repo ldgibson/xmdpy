@@ -10,9 +10,13 @@ from xmdpy.analysis import (
     compute_distances_across_frames,
     compute_radial_distribution,
     construct_bins,
+    construct_custom_bins,
     get_radial_weights,
+    is_monotonic,
     is_symmetric,
     lazy_take,
+    strictly_decreasing,
+    strictly_increasing,
     wrap,
     wrap_trajectory,
 )
@@ -358,6 +362,74 @@ def test_get_radial_weights_with_dask_returns_correct_dask_array() -> None:
 
     assert dask.is_dask_collection(result)
     np.testing.assert_allclose(result.compute(), expected)  # type: ignore
+
+
+@pytest.mark.parametrize(
+    ["num_list", "expected"],
+    [
+        ([1, 2, 3], True),
+        ([3, 2, 3], False),
+        ([1, 1, 2], False),
+    ],
+)
+def test_strictly_increasing(num_list, expected) -> None:
+    result = strictly_increasing(num_list)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ["num_list", "expected"],
+    [
+        ([3, 2, 1], True),
+        ([1, 2, 3], False),
+        ([2, 1, 1], False),
+    ],
+)
+def test_strictly_decreasing(num_list, expected) -> None:
+    result = strictly_decreasing(num_list)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ["num_list", "expected"],
+    [
+        ([3, 2, 1], True),
+        ([1, 2, 3], True),
+        ([2, 1, 1], False),
+    ],
+)
+def test_is_monotonic(num_list, expected) -> None:
+    result = is_monotonic(num_list)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ["bounds", "spacing", "expected"],
+    [
+        ([0, 2], [1], np.array([0, 1, 2])),
+        ([0, 2, 6], [1, 2], np.array([0, 1, 2, 4, 6])),
+        ([0, 5, 9], [3, 3], np.array([0, 3, 5, 8, 9])),
+    ],
+)
+def test_construct_custom_bins_valid(bounds, spacing, expected) -> None:
+    result = construct_custom_bins(bounds, spacing)
+    np.testing.assert_allclose(result, expected)
+
+
+def test_construct_custom_bins_invalid_bounds() -> None:
+    with pytest.raises(ValueError):
+        construct_custom_bins([0, 4, 2], [0.5, 1])
+
+
+def test_construct_custom_bins_spacing_raises_warning() -> None:
+    with pytest.raises(RuntimeWarning):
+        construct_custom_bins([0, 2, 4], [1, 3])
+
+
+@pytest.mark.parametrize("spacing", [(1, 1, 1), (1,), 1, (-1, 1)])
+def test_construct_custom_bins_invalid_spacing(spacing) -> None:
+    with pytest.raises(ValueError):
+        construct_custom_bins([0, 5, 10], spacing)
 
 
 def test_construct_bins_integer_bins() -> None:

@@ -142,11 +142,11 @@ def get_radial_weights(
 
 
 def strictly_increasing(x: Sequence[float]) -> bool:
-    return all(i <= j for i, j in pairwise(x))
+    return all(i < j for i, j in pairwise(x))
 
 
 def strictly_decreasing(x: Sequence[float]) -> bool:
-    return all(i >= j for i, j in pairwise(x))
+    return all(i > j for i, j in pairwise(x))
 
 
 def is_monotonic(x: Sequence[float]) -> bool:
@@ -163,15 +163,15 @@ def construct_custom_bins(
     ----------
     bounds : Sequence[float]
         Consecutive boundaries for bin arrays
-    spacing : Sequence[float] | None
+    spacing : Sequence[float]
         Controls density of bins for each span between neighboring bounds,
-        number of values must be one less than number of bounds,
-        i.e., len(spacing) == len(bounds) - 1
+        length must be one less than length of bounds,
+        i.e., `len(spacing) == len(bounds) - 1`
 
     Returns
     -------
     np.ndarray
-        Consecutive bin edges constructed from bin arrays with custom spacing
+        Bin edges constructed from bin arrays with custom spacing
 
     Raises
     ------
@@ -179,25 +179,33 @@ def construct_custom_bins(
         If bounds are not monotonic
     ValueError
         If invalid number of spacing values are provided
+    ValueError
+        If any spacing is less than or equal to zero
     """
     if not is_monotonic(bounds):
         raise ValueError("bounds must be monotonically increasing or decreasing")
 
-    if spacing is None:
-        spacing = []
+    if not hasattr(spacing, "__len__"):
+        raise ValueError("spacing must be provided as a container of values")
 
-    num_spacings = len(spacing)
-    num_bounds = len(bounds)
+    if any(x <= 0 for x in spacing):
+        raise ValueError("spacing values must be greater than 0")
 
-    if num_spacings != num_bounds - 1:
+    if len(spacing) != len(bounds) - 1:
         raise ValueError(
-            f"Invalid number of spacing values ({num_spacings}) provided for given "
+            "Invalid number of spacing values provided for given "
             "bounds. Number of spacing values must be one less than number of bounds."
         )
 
     bin_regions = []
 
     for (x0, x1), dx in zip(pairwise(bounds), spacing):
+        if abs(x1 - x0) < dx:
+            raise RuntimeWarning(
+                f"Spacing of {dx} is larger than interval between associated bounds: "
+                f"({x0}, {x1}). No intermediate values will be included in this "
+                "bounded region."
+            )
         bin_regions.append(np.arange(x0, x1, dx))
 
     if bin_regions[-1][-1] != bounds[-1]:
