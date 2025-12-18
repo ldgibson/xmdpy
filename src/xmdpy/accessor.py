@@ -21,10 +21,39 @@ class CellNotDefinedError(Exception):
         super().__init__(self.message)
 
 
+class AtomsNotFoundError(Exception):
+    pass
+
+
 def _has_trajectory_like_objects(obj: Dataset | DataArray) -> bool:
     if "xyz" in obj:
         if obj["xyz"].ndim == 3 and obj["xyz"].shape[-1] == 3:
             return True
+    return False
+
+
+def contains_atoms_selection(
+    atoms: str | Sequence[str] | int | Sequence[int] | slice, obj: Dataset | DataArray
+) -> bool:
+    if isinstance(atoms, str):
+        return atoms in obj.atoms
+
+    if isinstance(atoms, int):
+        return atoms in obj.atom_id
+
+    if isinstance(atoms, Sequence):
+        if all(isinstance(atom, str) for atom in atoms):
+            return all(np.isin(atoms, obj.atoms))
+        if all(isinstance(atom, int) for atom in atoms):
+            return all(np.isin(atoms, obj.atom_id))
+
+    if isinstance(atoms, slice):
+        n_atoms = len(obj.atom_id)
+        if atoms.stop and atoms.stop > n_atoms:
+            raise IndexError("slice extends beyond length of atoms")
+
+        return all(np.isin(range(*atoms.indices(n_atoms)), obj.atom_id))
+
     return False
 
 
@@ -67,7 +96,9 @@ class TrajectoryAccessor:
         # TODO
         raise NotImplementedError()
 
-    def atom_sel(self, atoms: str | int | Sequence[int] | slice) -> Dataset:
+    def atom_sel(
+        self, atoms: str | Sequence[str] | int | Sequence[int] | slice
+    ) -> Dataset:
         """Returns a dataset for the given atom selection.
 
         Parameters
@@ -80,15 +111,29 @@ class TrajectoryAccessor:
         Dataset
             Atom selection
         """
+        # TODO: Create normalizer to validate input and return standard types
+
+        if not contains_atoms_selection(atoms, self._obj):
+            raise AtomsNotFoundError(f"Atoms selection not found: {atoms}")
+
         if isinstance(atoms, str):
             return self._obj.where(self._obj.atoms == atoms, drop=True)
-        elif isinstance(atoms, int):
+        if isinstance(atoms, int):
             return self._obj.where(self._obj.atom_id == atoms, drop=True)
-        else:
+        if isinstance(atoms, Sequence):
+            if all(isinstance(atom, str) for atom in atoms):
+                return self._obj.where(self._obj.atoms.isin(atoms), drop=True)
+            if all(isinstance(atom, int) for atom in atoms):
+                return self._obj.where(self._obj.atom_id.isin(atoms), drop=True)
+        if isinstance(atoms, slice):
             return self._obj.sel(atom_id=atoms)
 
+        raise Exception("Unable to get atom selection")
+
     def get_atom_selections(
-        self, *args: str | int | Sequence[int] | slice, update_coord_names: bool = True
+        self,
+        *args: str | Sequence[str] | int | Sequence[int] | slice,
+        update_coord_names: bool = True,
     ) -> tuple[Dataset, ...]:
         """Returns a dataset for each selection provided.
 
@@ -269,8 +314,8 @@ class TrajectoryAccessor:
 
         attrs = {
             "atom_pairs": atom_pairs,
-            "atoms1": distances.atoms1.drop("atoms1"),
-            "atoms2": distances.atoms2.drop("atoms2"),
+            "atoms1": distances.atoms1.drop_vars("atoms1"),
+            "atoms2": distances.atoms2.drop_vars("atoms2"),
             "long_name": "g(r)",
         }
 
