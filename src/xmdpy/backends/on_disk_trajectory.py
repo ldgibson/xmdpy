@@ -11,8 +11,10 @@ from .on_disk_array import OuterIndex
 from .trajectory_formats import TrajectoryFormat
 from .xdatcar import OnDiskXDATCARTrajectory
 from .xyz import OnDiskXYZTrajectory
+from .extxyz import OnDiskEXTXYZTrajectory
 
 ON_DISK_TRAJECTORY: dict[TrajectoryFormat, type[OnDiskTrajectory]] = {
+    TrajectoryFormat.EXTXYZ: OnDiskEXTXYZTrajectory,
     TrajectoryFormat.XYZ: OnDiskXYZTrajectory,
     TrajectoryFormat.XDATCAR: OnDiskXDATCARTrajectory,
 }

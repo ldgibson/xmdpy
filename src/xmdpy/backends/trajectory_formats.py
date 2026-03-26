@@ -5,6 +5,7 @@ from xmdpy.types import PathLike
 
 
 class TrajectoryFormat(StrEnum):
+    EXTXYZ = "extxyz"
     XYZ = "xyz"
     XDATCAR = "xdatcar"
 

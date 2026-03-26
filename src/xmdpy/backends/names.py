@@ -21,6 +21,7 @@ class DataVar(StrEnum):
     POSITIONS = "xyz"
     CELL = "cell"
     VELOCITIES = "velocities"
+    FORCES = "forces"
     CHARGES = "charges"
     DIPOLE = "dipole"
 
@@ -33,6 +34,7 @@ DATA_VAR_DIMS: dict[Coord | DataVar, tuple[Dim, ...]] = {
     Coord.CELL: (Dim.CELL,),
     DataVar.POSITIONS: (Dim.TIME, Dim.ATOMID, Dim.SPACE),
     DataVar.VELOCITIES: (Dim.TIME, Dim.ATOMID, Dim.SPACE),
+    DataVar.FORCES: (Dim.TIME, Dim.ATOMID, Dim.SPACE),
     DataVar.CELL: (Dim.TIME, Dim.CELL, Dim.SPACE),
     DataVar.CHARGES: (Dim.TIME, Dim.ATOMID),
     DataVar.DIPOLE: (Dim.TIME, Dim.ATOMID, Dim.SPACE),
