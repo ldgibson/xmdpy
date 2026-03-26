@@ -1,5 +1,5 @@
 import itertools
-from typing import Sequence
+from typing import Sequence, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -228,7 +228,7 @@ class TrajectoryAccessor:
             core_dims.append([])
 
         if atoms1 is None:
-            atoms1 = list(self._obj.atom_id.data)
+            atoms1 = cast(list[int], self._obj.atom_id.data.tolist())
 
         if atoms2 is None:
             atoms2 = atoms1
