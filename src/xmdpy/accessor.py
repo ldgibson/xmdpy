@@ -93,7 +93,11 @@ class TrajectoryAccessor:
             xr.Dataset: New Dataset with the cell variable added.
         """
         return self._obj.assign(
-            {"cell": Cell(cell).to_xarray(time_index=self._obj.time)}
+            {
+                "cell": Cell(cell, n_frames=len(self._obj.time.data)).to_xarray(
+                    time_index=self._obj.time
+                )
+            }
         )
 
     def add_group(self, selection, name, indexable=True) -> Dataset:
