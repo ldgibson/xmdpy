@@ -189,6 +189,6 @@ class OnDiskXDATCARTrajectory:
 
     def get_attrs(self) -> dict[str, Any]:
         return {
-            "filename": self.filename,
+            "source": self.filename,
             "file_format": TrajectoryFormat.XDATCAR,
         }
