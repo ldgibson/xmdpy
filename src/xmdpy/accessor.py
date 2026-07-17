@@ -9,6 +9,10 @@ from xarray.core.dataset import Dataset
 
 from xmdpy.analysis import compute_distance_vectors, compute_radial_distribution
 from xmdpy.cell import Cell
+from xmdpy.types import Int1DArray
+
+
+type AtomSelectionIndex = str | Sequence[str] | int | Sequence[int] | Int1DArray | slice
 
 
 class CellNotDefinedError(Exception):
@@ -33,7 +37,7 @@ def _has_trajectory_like_objects(obj: Dataset | DataArray) -> bool:
 
 
 def contains_atoms_selection(
-    atoms: str | Sequence[str] | int | Sequence[int] | slice, obj: Dataset | DataArray
+    atoms: AtomSelectionIndex, obj: Dataset | DataArray
 ) -> bool:
     if isinstance(atoms, str):
         return atoms in obj.atoms
@@ -96,9 +100,25 @@ class TrajectoryAccessor:
         # TODO
         raise NotImplementedError()
 
-    def atom_sel(
-        self, atoms: str | Sequence[str] | int | Sequence[int] | slice
-    ) -> Dataset:
+    def _normalize_atoms_input(self, atoms: AtomSelectionIndex) -> Int1DArray:
+        obj_atoms = self._obj.atoms
+
+        if isinstance(atoms, slice):
+            return obj_atoms.atom_id.data[atoms]
+
+        if not isinstance(atoms, Sequence | np.ndarray):
+            atoms = np.array([atoms])
+
+        if all(isinstance(atom, str) for atom in atoms):
+            return obj_atoms.where(obj_atoms.isin(atoms), drop=True).atom_id.data
+        if all(isinstance(atom, int) for atom in atoms):
+            return obj_atoms.where(
+                obj_atoms.atom_id.isin(atoms), drop=True
+            ).atom_id.data
+
+        raise TypeError("Unknown type for atom selection: {type(atoms)}")
+
+    def atom_sel(self, atoms: AtomSelectionIndex) -> Dataset:
         """Returns a dataset for the given atom selection.
 
         Parameters
@@ -116,23 +136,13 @@ class TrajectoryAccessor:
         if not contains_atoms_selection(atoms, self._obj):
             raise AtomsNotFoundError(f"Atoms selection not found: {atoms}")
 
-        if isinstance(atoms, str):
-            return self._obj.where(self._obj.atoms == atoms, drop=True)
-        if isinstance(atoms, int):
-            return self._obj.where(self._obj.atom_id == atoms, drop=True)
-        if isinstance(atoms, Sequence):
-            if all(isinstance(atom, str) for atom in atoms):
-                return self._obj.where(self._obj.atoms.isin(atoms), drop=True)
-            if all(isinstance(atom, int) for atom in atoms):
-                return self._obj.where(self._obj.atom_id.isin(atoms), drop=True)
-        if isinstance(atoms, slice):
-            return self._obj.sel(atom_id=atoms)
+        atomsel_id = self._normalize_atoms_input(atoms)
 
-        raise Exception("Unable to get atom selection")
+        return self._obj.sel(atom_id=atomsel_id)
 
     def get_atom_selections(
         self,
-        *args: str | Sequence[str] | int | Sequence[int] | slice,
+        *args: AtomSelectionIndex,
         update_coord_names: bool = True,
     ) -> tuple[Dataset, ...]:
         """Returns a dataset for each selection provided.
